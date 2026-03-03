@@ -52,4 +52,28 @@ router.put("/notes/:id", async (req, res) => {
   res.json(note);
 });
 
+router.patch("/notes/:noteId", async (req, res) => {
+  const { noteId } = req.params;
+  const { text, color } = req.body;
+
+  const update = {};
+  if (text !== undefined) update.text = text;
+  if (color !== undefined) update.color = color;
+
+  const updated = await Note.findByIdAndUpdate(noteId, update, { new: true });
+  if (!updated) return res.status(404).json({ error: "Note not found" });
+
+  res.json(updated);
+});
+
+// DELETE note
+router.delete("/notes/:noteId", async (req, res) => {
+  const { noteId } = req.params;
+
+  const deleted = await Note.findByIdAndDelete(noteId);
+  if (!deleted) return res.status(404).json({ error: "Note not found" });
+
+  res.json({ ok: true });
+});
+
 export default router;

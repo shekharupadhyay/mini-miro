@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { updateNotePosition } from "../api/notesApi";
 
-export default function Note({ note, onPositionChange, screenToWorld }) {
+export default function Note({ note, onPositionChange, screenToWorld, onOpenMenu }){
   const [dragging, setDragging] = useState(false);
 
   // offset between mouse(world) and note(world) when drag started
@@ -15,29 +15,33 @@ export default function Note({ note, onPositionChange, screenToWorld }) {
 
   function handleMouseDown(e) {
     if (e.button !== 0) return; // left click only
-    e.stopPropagation(); // so board panning doesn't start
     e.preventDefault();
+    e.stopPropagation(); // prevents board pan starting
 
     setDragging(true);
 
     const world = screenToWorld(e.clientX, e.clientY);
-
-    // store offset in WORLD coords
     offsetRef.current = {
       x: world.x - note.x,
       y: world.y - note.y,
     };
   }
 
+  function handleContextMenu(e) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Send mouse position to parent (Board) so it can open menu there
+  onOpenMenu({ noteId: note._id, x: e.clientX, y: e.clientY });
+}
+
   useEffect(() => {
     if (!dragging) return;
 
     function onMove(e) {
       const world = screenToWorld(e.clientX, e.clientY);
-
       const newX = world.x - offsetRef.current.x;
       const newY = world.y - offsetRef.current.y;
-
       onPositionChange(note._id, newX, newY);
     }
 
@@ -60,6 +64,7 @@ export default function Note({ note, onPositionChange, screenToWorld }) {
   return (
     <div
       onMouseDown={handleMouseDown}
+      onContextMenu={handleContextMenu}
       style={{
         position: "absolute",
         left: note.x,

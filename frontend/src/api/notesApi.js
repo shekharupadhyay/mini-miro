@@ -16,3 +16,13 @@ export async function updateNotePosition(noteId, x, y) {
   const res = await axios.put(`${API_BASE}/api/notes/${noteId}`, { x, y });
   return res.data;
 }
+
+export async function updateNote(noteId, payload) {
+  const res = await axios.patch(`${API_BASE}/api/notes/${noteId}`, payload);
+  return res.data;
+}
+
+export async function deleteNote(noteId) {
+  const res = await axios.delete(`${API_BASE}/api/notes/${noteId}`);
+  return res.data;
+}

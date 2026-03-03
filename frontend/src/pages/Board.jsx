@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { fetchNotes, createNote } from "../api/notesApi"; // or ../api/notes depending on your file
+import { fetchNotes, createNote, updateNote, deleteNote } from "../api/notesApi";
+import ContextMenu from "../components/ContextMenu";
 import Note from "../components/Note";
 
 function clamp(n, min, max) {
@@ -12,6 +13,13 @@ export default function Board() {
   const viewportRef = useRef(null);
 
   const [notes, setNotes] = useState([]);
+
+  const [menu, setMenu] = useState({
+    open: false,
+    x: 0,
+    y: 0,
+    noteId: null,
+  });
 
   // camera: pan (x,y in screen px) + zoom scale
   const [camera, setCamera] = useState({ x: 0, y: 0, scale: 1 });
@@ -30,8 +38,6 @@ export default function Board() {
     (async () => {
       const data = await fetchNotes(boardId);
       setNotes(data);
-
-      // optional: on first load, center view a bit
       setCamera((c) => ({ ...c, x: 80, y: 80 }));
     })();
   }, [boardId]);
@@ -56,21 +62,51 @@ export default function Board() {
     };
   }, [camera]);
 
-  // Add note at center of screen (in world coords)
+  // Add note (typed) at center of screen (in world coords)
   async function handleAdd() {
+    const text = prompt("Note text?");
+    if (text === null) return;
+
     const rect = viewportRef.current.getBoundingClientRect();
-    const centerClientX = rect.left + rect.width / 2;
-    const centerClientY = rect.top + rect.height / 2;
-    const world = screenToWorld(centerClientX, centerClientY);
+    const world = screenToWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
 
     const newNote = await createNote(boardId, {
-      text: "New note",
+      text: text.trim(),
       x: Math.round(world.x),
       y: Math.round(world.y),
       color: "yellow",
     });
 
     setNotes((prev) => [...prev, newNote]);
+  }
+
+  // Menu open/close
+  function openMenu({ noteId, x, y }) {
+    setMenu({ open: true, x, y, noteId });
+  }
+
+  function closeMenu() {
+    setMenu((m) => ({ ...m, open: false, noteId: null }));
+  }
+
+  // Menu actions
+  async function handleEditFromMenu() {
+    const note = notes.find((n) => n._id === menu.noteId);
+    if (!note) return;
+
+    const text = prompt("Edit note text:", note.text);
+    if (text === null) return;
+
+    const updated = await updateNote(menu.noteId, { text });
+    setNotes((prev) => prev.map((n) => (n._id === updated._id ? updated : n)));
+  }
+
+  async function handleDeleteFromMenu() {
+    const ok = confirm("Delete this note?");
+    if (!ok) return;
+
+    await deleteNote(menu.noteId);
+    setNotes((prev) => prev.filter((n) => n._id !== menu.noteId));
   }
 
   // Zoom helper: zoom around mouse point (or center)
@@ -82,8 +118,6 @@ export default function Board() {
     setCamera((c) => {
       const nextScale = clamp(c.scale * zoomFactor, 0.3, 2.5);
 
-      // Keep the world point under the cursor fixed while zooming:
-      // world = (s - pan) / scale
       const worldX = (sx - c.x) / c.scale;
       const worldY = (sy - c.y) / c.scale;
 
@@ -94,7 +128,6 @@ export default function Board() {
     });
   }
 
-  // Mouse wheel zoom (trackpad friendly). Ctrl not required.
   function handleWheel(e) {
     e.preventDefault();
     const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
@@ -103,6 +136,9 @@ export default function Board() {
 
   // Pan with right mouse button OR middle mouse button
   function handleMouseDown(e) {
+    // If context menu is open and user left-clicks anywhere, close it
+    if (e.button === 0 && menu.open) closeMenu();
+
     // right-click or middle-click pans
     if (e.button !== 1 && e.button !== 2) return;
     e.preventDefault();
@@ -139,10 +175,12 @@ export default function Board() {
     const rect = viewportRef.current.getBoundingClientRect();
     zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, 1.15);
   }
+
   function zoomOut() {
     const rect = viewportRef.current.getBoundingClientRect();
     zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, 0.87);
   }
+
   function resetView() {
     setCamera({ x: 80, y: 80, scale: 1 });
   }
@@ -190,7 +228,7 @@ export default function Board() {
           cursor: panRef.current.active ? "grabbing" : "default",
         }}
       >
-        {/* This layer is the "world". We pan+zoom this. */}
+        {/* World layer (pan+zoom applied here) */}
         <div
           style={{
             position: "absolute",
@@ -204,15 +242,15 @@ export default function Board() {
         >
           {notes.map((n) => (
             <Note
-  key={n._id}
-  note={n}
-  onPositionChange={onPositionChange}
-  screenToWorld={screenToWorld}
-/>
+              key={n._id}
+              note={n}
+              onPositionChange={onPositionChange}
+              screenToWorld={screenToWorld}
+              onOpenMenu={openMenu}
+            />
           ))}
         </div>
 
-        {/* Small hint */}
         <div
           style={{
             position: "absolute",
@@ -226,10 +264,19 @@ export default function Board() {
             opacity: 0.9,
           }}
         >
-          Pan: Right click drag / Middle mouse drag • Zoom: Mouse wheel •
-          Scale: {camera.scale.toFixed(2)}
+          Pan: Right click drag / Middle mouse drag • Zoom: Mouse wheel • Scale:{" "}
+          {camera.scale.toFixed(2)}
         </div>
       </div>
+
+      <ContextMenu
+        open={menu.open}
+        x={menu.x}
+        y={menu.y}
+        onClose={closeMenu}
+        onEdit={handleEditFromMenu}
+        onDelete={handleDeleteFromMenu}
+      />
     </div>
   );
 }
