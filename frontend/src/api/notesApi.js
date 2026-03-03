@@ -13,9 +13,6 @@ export async function createNote(boardId, payload) {
 }
 
 export async function updateNotePosition(noteId, x, y) {
-  const res = await axios.put(
-    `http://localhost:5000/api/notes/${noteId}`,
-    { x, y }
-  );
+  const res = await axios.put(`${API_BASE}/api/notes/${noteId}`, { x, y });
   return res.data;
 }

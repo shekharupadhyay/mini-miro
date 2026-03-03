@@ -24,6 +24,20 @@ router.post("/boards/:boardId/notes", async (req, res) => {
 
   res.status(201).json(note);
 });
+router.put("/notes/:noteId", async (req, res) => {
+  const { noteId } = req.params;
+  const { x, y } = req.body;
+
+  const updated = await Note.findByIdAndUpdate(
+    noteId,
+    { x, y },
+    { new: true }
+  );
+
+  if (!updated) return res.status(404).json({ error: "Note not found" });
+
+  res.json(updated);
+});
 // UPDATE note position
 router.put("/notes/:id", async (req, res) => {
   const { id } = req.params;
