@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchNotes, createNote, updateNote, deleteNote } from "../api/notesApi";
+import Modal from "../components/Modal";
 import ContextMenu from "../components/ContextMenu";
 import Note from "../components/Note";
 
@@ -18,6 +19,17 @@ export default function Board() {
     open: false,
     x: 0,
     y: 0,
+    noteId: null,
+  });
+
+  const [editModal, setEditModal] = useState({
+    open: false,
+    noteId: null,
+    text: "",
+  });
+
+  const [deleteModal, setDeleteModal] = useState({
+    open: false,
     noteId: null,
   });
 
@@ -68,7 +80,10 @@ export default function Board() {
     if (text === null) return;
 
     const rect = viewportRef.current.getBoundingClientRect();
-    const world = screenToWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    const world = screenToWorld(
+      rect.left + rect.width / 2,
+      rect.top + rect.height / 2
+    );
 
     const newNote = await createNote(boardId, {
       text: text.trim(),
@@ -89,24 +104,18 @@ export default function Board() {
     setMenu((m) => ({ ...m, open: false, noteId: null }));
   }
 
-  // Menu actions
-  async function handleEditFromMenu() {
+  // Context menu actions -> open modals
+  function openEditModal() {
     const note = notes.find((n) => n._id === menu.noteId);
     if (!note) return;
 
-    const text = prompt("Edit note text:", note.text);
-    if (text === null) return;
-
-    const updated = await updateNote(menu.noteId, { text });
-    setNotes((prev) => prev.map((n) => (n._id === updated._id ? updated : n)));
+    setEditModal({ open: true, noteId: note._id, text: note.text });
+    closeMenu();
   }
 
-  async function handleDeleteFromMenu() {
-    const ok = confirm("Delete this note?");
-    if (!ok) return;
-
-    await deleteNote(menu.noteId);
-    setNotes((prev) => prev.filter((n) => n._id !== menu.noteId));
+  function openDeleteModal() {
+    setDeleteModal({ open: true, noteId: menu.noteId });
+    closeMenu();
   }
 
   // Zoom helper: zoom around mouse point (or center)
@@ -136,7 +145,7 @@ export default function Board() {
 
   // Pan with right mouse button OR middle mouse button
   function handleMouseDown(e) {
-    // If context menu is open and user left-clicks anywhere, close it
+    // close menu on left click anywhere
     if (e.button === 0 && menu.open) closeMenu();
 
     // right-click or middle-click pans
@@ -269,14 +278,150 @@ export default function Board() {
         </div>
       </div>
 
+      {/* Context Menu */}
       <ContextMenu
         open={menu.open}
         x={menu.x}
         y={menu.y}
         onClose={closeMenu}
-        onEdit={handleEditFromMenu}
-        onDelete={handleDeleteFromMenu}
+        onEdit={openEditModal}
+        onDelete={openDeleteModal}
       />
+
+      {/* Edit Modal */}
+      <Modal
+        open={editModal.open}
+        title="Edit note"
+        onClose={() => setEditModal({ open: false, noteId: null, text: "" })}
+      >
+        <textarea
+          value={editModal.text}
+          onChange={(e) =>
+            setEditModal((m) => ({ ...m, text: e.target.value }))
+          }
+          rows={6}
+          style={{
+            width: "100%",
+            resize: "vertical",
+            padding: 12,
+            borderRadius: 12,
+            border: "1px solid rgba(255,255,255,0.14)",
+            background: "rgba(0,0,0,0.25)",
+            color: "white",
+            outline: "none",
+            fontSize: 14,
+            lineHeight: 1.4,
+          }}
+          autoFocus
+        />
+
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            justifyContent: "flex-end",
+            marginTop: 12,
+          }}
+        >
+          <button
+            onClick={() =>
+              setEditModal({ open: false, noteId: null, text: "" })
+            }
+            style={secondaryBtn}
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={async () => {
+              const id = editModal.noteId;
+              if (!id) return;
+
+              const text = editModal.text.trim();
+              const updated = await updateNote(id, { text });
+
+              setNotes((prev) =>
+                prev.map((n) => (n._id === updated._id ? updated : n))
+              );
+
+              setEditModal({ open: false, noteId: null, text: "" });
+            }}
+            style={primaryBtn}
+          >
+            Save
+          </button>
+        </div>
+      </Modal>
+
+      {/* Delete Modal */}
+      <Modal
+        open={deleteModal.open}
+        title="Delete note?"
+        onClose={() => setDeleteModal({ open: false, noteId: null })}
+      >
+        <div style={{ opacity: 0.9, lineHeight: 1.4 }}>
+          This will permanently delete the note.
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            justifyContent: "flex-end",
+            marginTop: 14,
+          }}
+        >
+          <button
+            onClick={() => setDeleteModal({ open: false, noteId: null })}
+            style={secondaryBtn}
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={async () => {
+              const id = deleteModal.noteId;
+              if (!id) return;
+
+              await deleteNote(id);
+              setNotes((prev) => prev.filter((n) => n._id !== id));
+
+              setDeleteModal({ open: false, noteId: null });
+            }}
+            style={dangerBtn}
+          >
+            Delete
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
+
+const primaryBtn = {
+  border: "1px solid rgba(255,255,255,0.16)",
+  background: "rgba(255,255,255,0.12)",
+  color: "white",
+  borderRadius: 12,
+  padding: "10px 14px",
+  cursor: "pointer",
+};
+
+const secondaryBtn = {
+  border: "1px solid rgba(255,255,255,0.16)",
+  background: "transparent",
+  color: "white",
+  borderRadius: 12,
+  padding: "10px 14px",
+  cursor: "pointer",
+  opacity: 0.9,
+};
+
+const dangerBtn = {
+  border: "1px solid rgba(255,120,120,0.35)",
+  background: "rgba(255,80,80,0.18)",
+  color: "white",
+  borderRadius: 12,
+  padding: "10px 14px",
+  cursor: "pointer",
+};
