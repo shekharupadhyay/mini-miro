@@ -1,0 +1,80 @@
+.board-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.board-topbar {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+}
+
+.board-back-link {
+  color: white;
+  opacity: 0.9;
+  text-decoration: none;
+}
+
+.board-title {
+  font-weight: 700;
+}
+
+.board-subtitle {
+  opacity: 0.7;
+}
+
+.board-toolbar {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.board-toolbar button {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.board-toolbar button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.board-viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(
+    circle at 20px 20px,
+    rgba(255, 255, 255, 0.08) 1px,
+    transparent 1px
+  );
+  background-size: 40px 40px;
+}
+
+.board-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  width: 1px;
+  height: 1px;
+}
+
+.board-hint {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  opacity: 0.9;
+}

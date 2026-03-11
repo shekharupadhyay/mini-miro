@@ -1,0 +1,31 @@
+.context-menu {
+  position: fixed;
+  z-index: 9999;
+  width: 170px;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(20, 20, 20, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+}
+
+.context-menu-btn {
+  width: 100%;
+  padding: 10px 10px;
+  text-align: left;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.context-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.context-menu-btn.delete {
+  color: #ffb4b4;
+}

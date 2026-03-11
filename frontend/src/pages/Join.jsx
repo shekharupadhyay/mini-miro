@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import "./Join.css";
+
 export default function Join() {
   const [boardId, setBoardId] = useState("");
   const navigate = useNavigate();
@@ -17,22 +19,27 @@ export default function Join() {
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <h2>Mini Miro</h2>
-      <form onSubmit={handleJoin} style={{ marginTop: 16 }}>
-        <input
-          value={boardId}
-          onChange={(e) => setBoardId(e.target.value)}
-          placeholder="Enter board id (room)"
-          style={{ padding: 10, width: 260 }}
-        />
-        <button style={{ marginLeft: 10, padding: "10px 14px" }}>
-          Join
-        </button>
-      </form>
+     <div className="join-page">
+      <div className="join-card">
+        <div className="join-title">Mini Miro</div>
 
-      <div style={{ marginTop: 16 }}>
-        <button onClick={handleCreateRandom} style={{ padding: "10px 14px" }}>
+        <form onSubmit={handleJoin}>
+          <input
+            className="join-input"
+            value={boardId}
+            onChange={(e) => setBoardId(e.target.value)}
+            placeholder="Enter board id"
+          />
+
+          <button className="join-btn">
+            Join Board
+          </button>
+        </form>
+
+        <button
+          onClick={handleCreateRandom}
+          className="create-btn"
+        >
           + Create New Board
         </button>
       </div>

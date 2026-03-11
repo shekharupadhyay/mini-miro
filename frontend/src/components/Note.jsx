@@ -1,22 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import { updateNotePosition } from "../api/notesApi";
+import "./Note.css";
 
-export default function Note({ note, onPositionChange, screenToWorld, onOpenMenu }){
+export default function Note({
+  note,
+  onPositionChange,
+  screenToWorld,
+  onOpenMenu,
+}) {
   const [dragging, setDragging] = useState(false);
 
-  // offset between mouse(world) and note(world) when drag started
   const offsetRef = useRef({ x: 0, y: 0 });
-
-  // always keep latest note so we save correct x/y on mouseup
   const latestNoteRef = useRef(note);
+
   useEffect(() => {
     latestNoteRef.current = note;
   }, [note]);
 
   function handleMouseDown(e) {
-    if (e.button !== 0) return; // left click only
+    if (e.button !== 0) return;
     e.preventDefault();
-    e.stopPropagation(); // prevents board pan starting
+    e.stopPropagation();
 
     setDragging(true);
 
@@ -28,12 +32,11 @@ export default function Note({ note, onPositionChange, screenToWorld, onOpenMenu
   }
 
   function handleContextMenu(e) {
-  e.preventDefault();
-  e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
 
-  // Send mouse position to parent (Board) so it can open menu there
-  onOpenMenu({ noteId: note._id, x: e.clientX, y: e.clientY });
-}
+    onOpenMenu({ noteId: note._id, x: e.clientX, y: e.clientY });
+  }
 
   useEffect(() => {
     if (!dragging) return;
@@ -63,21 +66,14 @@ export default function Note({ note, onPositionChange, screenToWorld, onOpenMenu
 
   return (
     <div
+      className="note"
       onMouseDown={handleMouseDown}
       onContextMenu={handleContextMenu}
       style={{
-        position: "absolute",
         left: note.x,
         top: note.y,
-        width: 180,
-        minHeight: 110,
-        padding: 12,
-        borderRadius: 14,
-        border: "1px solid rgba(255,255,255,0.18)",
         background: note.color,
         cursor: dragging ? "grabbing" : "grab",
-        userSelect: "none",
-        boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
       }}
     >
       {note.text}

@@ -4,6 +4,7 @@ import { fetchNotes, createNote, updateNote, deleteNote } from "../api/notesApi"
 import Modal from "../components/Modal";
 import ContextMenu from "../components/ContextMenu";
 import Note from "../components/Note";
+import "./Board.css";
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -195,25 +196,16 @@ export default function Board() {
   }
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+    <div className="board-page">
       {/* Top bar */}
-      <div
-        style={{
-          padding: "12px 16px",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          borderBottom: "1px solid rgba(255,255,255,0.12)",
-          backdropFilter: "blur(8px)",
-        }}
-      >
-        <Link to="/" style={{ color: "white", opacity: 0.9 }}>
+      <div className="board-topbar">
+        <Link to="/" className="board-back-link">
           ← Back
         </Link>
-        <div style={{ fontWeight: 700 }}>Mini Miro</div>
-        <div style={{ opacity: 0.7 }}>Board: {boardId}</div>
+        <div className="board-title">Mini Miro</div>
+        <div className="board-subtitle">Board: {boardId}</div>
 
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+        <div className="board-toolbar">
           <button onClick={handleAdd}>+ Add Note</button>
           <button onClick={zoomOut}>−</button>
           <button onClick={zoomIn}>+</button>
@@ -223,32 +215,22 @@ export default function Board() {
 
       {/* Viewport */}
       <div
-        ref={viewportRef}
-        onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onContextMenu={(e) => e.preventDefault()}
-        style={{
-          flex: 1,
-          position: "relative",
-          overflow: "hidden",
-          background:
-            "radial-gradient(circle at 20px 20px, rgba(255,255,255,0.08) 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
-          cursor: panRef.current.active ? "grabbing" : "default",
-        }}
-      >
+  ref={viewportRef}
+  onWheel={handleWheel}
+  onMouseDown={handleMouseDown}
+  onContextMenu={(e) => e.preventDefault()}
+  className="board-viewport"
+  style={{
+    cursor: panRef.current.active ? "grabbing" : "default",
+  }}
+>
         {/* World layer (pan+zoom applied here) */}
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            top: 0,
-            transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.scale})`,
-            transformOrigin: "0 0",
-            width: 1,
-            height: 1,
-          }}
-        >
+ <div
+  className="board-world"
+  style={{
+    transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.scale})`,
+  }}
+>
           {notes.map((n) => (
             <Note
               key={n._id}
@@ -260,19 +242,7 @@ export default function Board() {
           ))}
         </div>
 
-        <div
-          style={{
-            position: "absolute",
-            left: 12,
-            bottom: 12,
-            padding: "8px 10px",
-            borderRadius: 10,
-            background: "rgba(0,0,0,0.35)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            fontSize: 12,
-            opacity: 0.9,
-          }}
-        >
+        <div className="board-hint">
           Pan: Right click drag / Middle mouse drag • Zoom: Mouse wheel • Scale:{" "}
           {camera.scale.toFixed(2)}
         </div>
