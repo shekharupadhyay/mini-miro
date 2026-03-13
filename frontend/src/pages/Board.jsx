@@ -37,6 +37,8 @@ export default function Board() {
   // camera: pan (x,y in screen px) + zoom scale
   const [camera, setCamera] = useState({ x: 0, y: 0, scale: 1 });
 
+  const [editingNoteId, setEditingNoteId] = useState(null);
+
   // panning state
   const panRef = useRef({
     active: false,
@@ -106,13 +108,10 @@ export default function Board() {
   }
 
   // Context menu actions -> open modals
-  function openEditModal() {
-    const note = notes.find((n) => n._id === menu.noteId);
-    if (!note) return;
-
-    setEditModal({ open: true, noteId: note._id, text: note.text });
-    closeMenu();
-  }
+function openEditInline() {
+  setEditingNoteId(menu.noteId);
+  closeMenu();
+}
 
   function openDeleteModal() {
     setDeleteModal({ open: true, noteId: menu.noteId });
@@ -195,6 +194,11 @@ export default function Board() {
     setCamera({ x: 80, y: 80, scale: 1 });
   }
 
+  function openEditInline() {
+  setEditingNoteId(menu.noteId);
+  closeMenu();
+}
+
   return (
     <div className="board-page">
       {/* Top bar */}
@@ -234,13 +238,23 @@ export default function Board() {
   }}
 >
           {notes.map((n) => (
-            <Note
-              key={n._id}
-              note={n}
-              onPositionChange={onPositionChange}
-              screenToWorld={screenToWorld}
-              onOpenMenu={openMenu}
-            />
+           <Note
+  key={n._id}
+  note={n}
+  onPositionChange={onPositionChange}
+  screenToWorld={screenToWorld}
+  onOpenMenu={openMenu}
+  isEditing={editingNoteId === n._id}
+  onStartEdit={() => setEditingNoteId(n._id)}
+  onStopEdit={() => setEditingNoteId(null)}
+  onSaveEdit={async (noteId, text) => {
+    const updated = await updateNote(noteId, { text });
+    setNotes((prev) =>
+      prev.map((n) => (n._id === updated._id ? updated : n))
+    );
+    setEditingNoteId(null);
+  }}
+/>
           ))}
         </div>
 
@@ -256,7 +270,7 @@ export default function Board() {
         x={menu.x}
         y={menu.y}
         onClose={closeMenu}
-        onEdit={openEditModal}
+        onEdit={openEditInline}
         onDelete={openDeleteModal}
       />
 
