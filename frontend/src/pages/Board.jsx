@@ -4,7 +4,7 @@ import { fetchNotes, createNote, updateNote, deleteNote } from "../api/notesApi"
 import Modal from "../components/Modal";
 import ContextMenu from "../components/ContextMenu";
 import Note from "../components/Note";
-import "./Board.css";
+import "./board.css";
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -206,7 +206,9 @@ export default function Board() {
         <div className="board-subtitle">Board: {boardId}</div>
 
         <div className="board-toolbar">
-          <button onClick={handleAdd}>+ Add Note</button>
+          <button className="add-note-btn" onClick={handleAdd}>
+            + Add Note
+          </button>
           <button onClick={zoomOut}>−</button>
           <button onClick={zoomIn}>+</button>
           <button onClick={resetView}>Reset</button>
@@ -265,62 +267,63 @@ export default function Board() {
         onClose={() => setEditModal({ open: false, noteId: null, text: "" })}
       >
         <textarea
-          value={editModal.text}
-          onChange={(e) =>
-            setEditModal((m) => ({ ...m, text: e.target.value }))
-          }
-          rows={6}
-          style={{
-            width: "100%",
-            resize: "vertical",
-            padding: 12,
-            borderRadius: 12,
-            border: "1px solid rgba(255,255,255,0.14)",
-            background: "rgba(0,0,0,0.25)",
-            color: "white",
-            outline: "none",
-            fontSize: 14,
-            lineHeight: 1.4,
-          }}
-          autoFocus
-        />
+  value={editModal.text}
+  onChange={(e) =>
+    setEditModal((m) => ({ ...m, text: e.target.value }))
+  }
+  rows={7}
+  style={{
+    width: "100%",
+    resize: "vertical",
+    padding: 14,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.04)",
+    color: "white",
+    outline: "none",
+    fontSize: 15,
+    lineHeight: 1.5,
+    boxSizing: "border-box",
+  }}
+  autoFocus
+/>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            justifyContent: "flex-end",
-            marginTop: 12,
-          }}
-        >
-          <button
-            onClick={() =>
-              setEditModal({ open: false, noteId: null, text: "" })
-            }
-            style={secondaryBtn}
-          >
-            Cancel
-          </button>
+<div
+  style={{
+    display: "flex",
+    gap: 10,
+    justifyContent: "flex-end",
+    marginTop: 14,
+  }}
+>
+  <button
+    onClick={() =>
+      setEditModal({ open: false, noteId: null, text: "" })
+    }
+    style={secondaryBtn}
+  >
+    Cancel
+  </button>
 
-          <button
-            onClick={async () => {
-              const id = editModal.noteId;
-              if (!id) return;
+  <button
+    onClick={async () => {
+      const id = editModal.noteId;
+      if (!id) return;
 
-              const text = editModal.text.trim();
-              const updated = await updateNote(id, { text });
+      const text = editModal.text.trim();
+      const updated = await updateNote(id, { text });
 
-              setNotes((prev) =>
-                prev.map((n) => (n._id === updated._id ? updated : n))
-              );
+      setNotes((prev) =>
+        prev.map((n) => (n._id === updated._id ? updated : n))
+      );
 
-              setEditModal({ open: false, noteId: null, text: "" });
-            }}
-            style={primaryBtn}
-          >
-            Save
-          </button>
-        </div>
+      setEditModal({ open: false, noteId: null, text: "" });
+    }}
+    style={primaryBtn}
+  >
+    Save changes
+  </button>
+</div>
       </Modal>
 
       {/* Delete Modal */}
@@ -329,9 +332,16 @@ export default function Board() {
         title="Delete note?"
         onClose={() => setDeleteModal({ open: false, noteId: null })}
       >
-        <div style={{ opacity: 0.9, lineHeight: 1.4 }}>
-          This will permanently delete the note.
-        </div>
+       <div
+  style={{
+    opacity: 0.9,
+    lineHeight: 1.5,
+    fontSize: 14,
+    padding: "4px 2px",
+  }}
+>
+  This note will be permanently removed from the board.
+</div>
 
         <div
           style={{
@@ -367,31 +377,33 @@ export default function Board() {
     </div>
   );
 }
-
 const primaryBtn = {
-  border: "1px solid rgba(255,255,255,0.16)",
+  border: "1px solid rgba(255,255,255,0.14)",
   background: "rgba(255,255,255,0.12)",
   color: "white",
   borderRadius: 12,
-  padding: "10px 14px",
+  padding: "10px 16px",
   cursor: "pointer",
+  fontWeight: 600,
 };
 
 const secondaryBtn = {
-  border: "1px solid rgba(255,255,255,0.16)",
+  border: "1px solid rgba(255,255,255,0.14)",
   background: "transparent",
   color: "white",
   borderRadius: 12,
-  padding: "10px 14px",
+  padding: "10px 16px",
   cursor: "pointer",
-  opacity: 0.9,
+  opacity: 0.92,
+  fontWeight: 500,
 };
 
 const dangerBtn = {
-  border: "1px solid rgba(255,120,120,0.35)",
+  border: "1px solid rgba(255,120,120,0.28)",
   background: "rgba(255,80,80,0.18)",
   color: "white",
   borderRadius: 12,
-  padding: "10px 14px",
+  padding: "10px 16px",
   cursor: "pointer",
+  fontWeight: 600,
 };

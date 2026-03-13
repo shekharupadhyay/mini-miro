@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import "./ContextMenu.css";
+import { useEffect, useRef, useState } from "react";
+import "./contextMenu.css";
 
 export default function ContextMenu({
   open,
@@ -10,6 +10,7 @@ export default function ContextMenu({
   onDelete,
 }) {
   const ref = useRef(null);
+  const [pos, setPos] = useState({ x, y });
 
   useEffect(() => {
     if (!open) return;
@@ -33,6 +34,27 @@ export default function ContextMenu({
     };
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const menuWidth = 220;
+    const menuHeight = 120;
+    const padding = 12;
+
+    let nextX = x;
+    let nextY = y;
+
+    if (x + menuWidth > window.innerWidth - padding) {
+      nextX = window.innerWidth - menuWidth - padding;
+    }
+
+    if (y + menuHeight > window.innerHeight - padding) {
+      nextY = window.innerHeight - menuHeight - padding;
+    }
+
+    setPos({ x: nextX, y: nextY });
+  }, [open, x, y]);
+
   if (!open) return null;
 
   return (
@@ -40,10 +62,12 @@ export default function ContextMenu({
       ref={ref}
       className="context-menu"
       style={{
-        left: x,
-        top: y,
+        left: pos.x,
+        top: pos.y,
       }}
     >
+      <div className="context-menu-label">Note actions</div>
+
       <button
         className="context-menu-btn"
         onClick={() => {
@@ -51,17 +75,19 @@ export default function ContextMenu({
           onClose();
         }}
       >
-        ✏️ Edit
+        <span>✏️ Edit note</span>
+        <span className="context-menu-hint">Enter</span>
       </button>
 
       <button
-        className="context-menu-btn delete"
+        className="context-menu-btn danger"
         onClick={() => {
           onDelete();
           onClose();
         }}
       >
-        🗑 Delete
+        <span>🗑 Delete note</span>
+        <span className="context-menu-hint">Del</span>
       </button>
     </div>
   );

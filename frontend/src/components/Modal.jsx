@@ -32,14 +32,17 @@ export default function Modal({ open, title, children, onClose }) {
     <div className="modal-overlay">
       <div ref={panelRef} className="modal-panel">
         <div className="modal-header">
-          <div className="modal-title">{title}</div>
+          <div>
+            <div className="modal-title">{title}</div>
+            <div className="modal-subtitle">Make your changes below</div>
+          </div>
 
           <button onClick={onClose} className="modal-close">
             ✕
           </button>
         </div>
 
-        {children}
+        <div className="modal-body">{children}</div>
       </div>
     </div>
   );
