@@ -1,65 +1,157 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap');
+
+/* ─── Page ───────────────────────────────────────────────────────── */
 .join-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at 20px 20px, rgba(255,255,255,0.08) 1px, transparent 1px);
-  background-size: 40px 40px;
-  font-family: sans-serif;
+  background-color: #ffffff;
+  background-image: radial-gradient(circle, rgba(0,0,0,0.10) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: 14px 14px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* ─── Card ───────────────────────────────────────────────────────── */
 .join-card {
-  background: rgba(0,0,0,0.4);
-  border: 1px solid rgba(255,255,255,0.15);
-  backdrop-filter: blur(10px);
-  padding: 30px;
-  border-radius: 14px;
-  width: 320px;
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.09);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05);
+  padding: 36px 32px 32px;
+  border-radius: 16px;
+  width: 340px;
   text-align: center;
 }
 
-.join-title {
-  font-size: 24px;
-  font-weight: 700;
-  margin-bottom: 20px;
+/* ─── Logo mark ──────────────────────────────────────────────────── */
+.join-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  background: rgba(79, 125, 255, 0.10);
+  border: 1px solid rgba(79, 125, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
 }
 
+.join-logo svg {
+  width: 20px;
+  height: 20px;
+  stroke: #4f7dff;
+}
+
+/* ─── Title & subtitle ───────────────────────────────────────────── */
+.join-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #111318;
+  margin-bottom: 4px;
+}
+
+.join-subtitle {
+  font-size: 13px;
+  color: rgba(17,19,24,0.45);
+  margin-bottom: 24px;
+  line-height: 1.4;
+}
+
+/* ─── Divider ────────────────────────────────────────────────────── */
+.join-divider {
+  height: 1px;
+  background: rgba(0,0,0,0.07);
+  margin: 20px 0;
+  position: relative;
+}
+
+.join-divider span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  padding: 0 10px;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  color: rgba(17,19,24,0.35);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ─── Input ──────────────────────────────────────────────────────── */
 .join-input {
   width: 100%;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.2);
-  background: rgba(0,0,0,0.3);
-  color: white;
+  padding: 10px 13px;
+  border-radius: 9px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: #f7f8fa;
+  color: #111318;
   outline: none;
+  font-size: 14px;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.04em;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+.join-input::placeholder {
+  color: rgba(17,19,24,0.35);
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0;
+}
+
+.join-input:focus {
+  border-color: #4f7dff;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(79,125,255,0.14);
+}
+
+/* ─── Buttons ────────────────────────────────────────────────────── */
 .join-btn {
-  margin-top: 12px;
+  margin-top: 10px;
   width: 100%;
   padding: 10px;
-  border-radius: 8px;
+  border-radius: 9px;
   border: none;
-  background: #3b82f6;
-  color: white;
+  background: #4f7dff;
+  color: #fff;
   cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.01em;
+  box-sizing: border-box;
+  transition: background 0.15s, box-shadow 0.2s;
 }
 
 .join-btn:hover {
-  background: #2563eb;
+  background: #3a6bef;
+  box-shadow: 0 0 0 3px rgba(79,125,255,0.18);
 }
 
 .create-btn {
-  margin-top: 14px;
+  margin-top: 10px;
   width: 100%;
   padding: 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 9px;
+  border: 1px solid rgba(0,0,0,0.10);
   background: transparent;
-  color: white;
+  color: rgba(17,19,24,0.7);
   cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.01em;
+  box-sizing: border-box;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .create-btn:hover {
-  background: rgba(255,255,255,0.08);
+  background: #f5f6f8;
+  border-color: rgba(0,0,0,0.16);
+  color: #111318;
 }

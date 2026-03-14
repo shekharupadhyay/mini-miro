@@ -203,21 +203,39 @@ function openEditInline() {
     <div className="board-page">
       {/* Top bar */}
       <div className="board-topbar">
-        <Link to="/" className="board-back-link">
-          ← Back
-        </Link>
-        <div className="board-title">Mini Miro</div>
-        <div className="board-subtitle">Board: {boardId}</div>
-
-        <div className="board-toolbar">
-          <button className="add-note-btn" onClick={handleAdd}>
-            + Add Note
-          </button>
-          <button onClick={zoomOut}>−</button>
-          <button onClick={zoomIn}>+</button>
-          <button onClick={resetView}>Reset</button>
-        </div>
-      </div>
+  <Link to="/" className="board-back-link">
+    ← Back
+  </Link>
+ 
+  <div className="board-brand">
+    <div className="board-logo">
+      {/* Grid icon */}
+      <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="1" y="1" width="5" height="5" />
+        <rect x="8" y="1" width="5" height="5" />
+        <rect x="1" y="8" width="5" height="5" />
+        <rect x="8" y="8" width="5" height="5" />
+      </svg>
+    </div>
+    <span className="board-title">MiniMiro</span>
+  </div>
+ 
+  <div className="board-divider" />
+ 
+  <span className="board-subtitle">{boardId}</span>
+ 
+  <div className="board-toolbar">
+    <button className="add-note-btn" onClick={handleAdd}>
+      + Add Note
+    </button>
+    <div className="board-toolbar-sep" />
+    <button className="btn-zoom" onClick={zoomOut} title="Zoom out">−</button>
+    <button className="btn-zoom" onClick={zoomIn}  title="Zoom in">+</button>
+    <button onClick={resetView}>Reset</button>
+  </div>
+</div>
+ 
+ 
 
       {/* Viewport */}
       <div
@@ -392,32 +410,43 @@ function openEditInline() {
   );
 }
 const primaryBtn = {
-  border: "1px solid rgba(255,255,255,0.14)",
-  background: "rgba(255,255,255,0.12)",
-  color: "white",
-  borderRadius: 12,
-  padding: "10px 16px",
+  border: "1px solid rgba(79,125,255,0.35)",
+  background: "rgba(79,125,255,0.12)",
+  color: "#2a52cc",
+  borderRadius: 8,
+  padding: "9px 16px",
   cursor: "pointer",
   fontWeight: 600,
+  fontSize: 13,
+  fontFamily: "var(--font)",
+  letterSpacing: "0.01em",
+  transition: "background 0.15s",
 };
-
+ 
 const secondaryBtn = {
-  border: "1px solid rgba(255,255,255,0.14)",
+  border: "1px solid rgba(0,0,0,0.1)",
   background: "transparent",
-  color: "white",
-  borderRadius: 12,
-  padding: "10px 16px",
+  color: "rgba(17,19,24,0.55)",
+  borderRadius: 8,
+  padding: "9px 16px",
   cursor: "pointer",
-  opacity: 0.92,
   fontWeight: 500,
+  fontSize: 13,
+  fontFamily: "var(--font)",
+  letterSpacing: "0.01em",
+  transition: "background 0.15s, color 0.15s",
 };
-
+ 
 const dangerBtn = {
-  border: "1px solid rgba(255,120,120,0.28)",
-  background: "rgba(255,80,80,0.18)",
-  color: "white",
-  borderRadius: 12,
-  padding: "10px 16px",
+  border: "1px solid rgba(224,60,60,0.3)",
+  background: "rgba(224,60,60,0.08)",
+  color: "#c02020",
+  borderRadius: 8,
+  padding: "9px 16px",
   cursor: "pointer",
   fontWeight: 600,
+  fontSize: 13,
+  fontFamily: "var(--font)",
+  letterSpacing: "0.01em",
+  transition: "background 0.15s",
 };
