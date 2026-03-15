@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import "./modal.css";
 
-export default function Modal({ open, title, children, onClose }) {
+export default function Modal({ open, title, subtitle, children, onClose }) {
   const panelRef = useRef(null);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export default function Modal({ open, title, children, onClose }) {
         <div className="modal-header">
           <div>
             <div className="modal-title">{title}</div>
-            <div className="modal-subtitle">Make your changes below</div>
+            {subtitle && <div className="modal-subtitle">{subtitle}</div>}
           </div>
 
           <button onClick={onClose} className="modal-close">

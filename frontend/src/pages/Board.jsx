@@ -16,17 +16,16 @@ export default function Board() {
 
   const [notes, setNotes] = useState([]);
 
+  // Single menu state — mode tells ContextMenu which section to render
   const [menu, setMenu] = useState({
     open: false,
     x: 0,
     y: 0,
+    mode: "canvas",   // "canvas" | "note"
     noteId: null,
-  });
-
-  const [editModal, setEditModal] = useState({
-    open: false,
-    noteId: null,
-    text: "",
+    // world coords stored so canvas-add knows where to place the note
+    worldX: 0,
+    worldY: 0,
   });
 
   const [deleteModal, setDeleteModal] = useState({
@@ -34,18 +33,17 @@ export default function Board() {
     noteId: null,
   });
 
-  // camera: pan (x,y in screen px) + zoom scale
   const [camera, setCamera] = useState({ x: 0, y: 0, scale: 1 });
-
   const [editingNoteId, setEditingNoteId] = useState(null);
 
-  // panning state
   const panRef = useRef({
     active: false,
     startX: 0,
     startY: 0,
     camStartX: 0,
     camStartY: 0,
+    button: 0,
+    moved: false,
   });
 
   // Load notes
@@ -57,14 +55,12 @@ export default function Board() {
     })();
   }, [boardId]);
 
-  // Used by Note component while dragging (updates local state)
   function onPositionChange(id, x, y) {
     setNotes((prev) =>
       prev.map((n) => (n._id === id ? { ...n, x, y } : n))
     );
   }
 
-  // screen -> world
   const screenToWorld = useMemo(() => {
     return (clientX, clientY) => {
       const rect = viewportRef.current.getBoundingClientRect();
@@ -77,48 +73,49 @@ export default function Board() {
     };
   }, [camera]);
 
-  // Add note (typed) at center of screen (in world coords)
-  async function handleAdd() {
-    const text = prompt("Note text?");
-    if (text === null) return;
+  // ── Add note ──────────────────────────────────────────────────────
+  async function addNoteAt(worldX, worldY) {
+    const newNote = await createNote(boardId, {
+      text: "",
+      x: Math.round(worldX),
+      y: Math.round(worldY),
+      color: "yellow",
+    });
+    setNotes((prev) => [...prev, newNote]);
+    setEditingNoteId(newNote._id);
+  }
 
+  // Toolbar button — adds at screen center
+  async function handleAdd() {
     const rect = viewportRef.current.getBoundingClientRect();
     const world = screenToWorld(
       rect.left + rect.width / 2,
       rect.top + rect.height / 2
     );
-
-    const newNote = await createNote(boardId, {
-      text: text.trim(),
-      x: Math.round(world.x),
-      y: Math.round(world.y),
-      color: "yellow",
-    });
-
-    setNotes((prev) => [...prev, newNote]);
+    await addNoteAt(world.x, world.y);
   }
 
-  // Menu open/close
-  function openMenu({ noteId, x, y }) {
-    setMenu({ open: true, x, y, noteId });
-  }
-
+  // ── Menu helpers ──────────────────────────────────────────────────
   function closeMenu() {
-    setMenu((m) => ({ ...m, open: false, noteId: null }));
+    setMenu((m) => ({ ...m, open: false }));
   }
 
-  // Context menu actions -> open modals
-function openEditInline() {
-  setEditingNoteId(menu.noteId);
-  closeMenu();
-}
+  // Called by Note component when the user right-clicks a note
+  function openNoteMenu({ noteId, x, y }) {
+    setMenu({ open: true, x, y, mode: "note", noteId, worldX: 0, worldY: 0 });
+  }
+
+  function openEditInline() {
+    setEditingNoteId(menu.noteId);
+    closeMenu();
+  }
 
   function openDeleteModal() {
     setDeleteModal({ open: true, noteId: menu.noteId });
     closeMenu();
   }
 
-  // Zoom helper: zoom around mouse point (or center)
+  // ── Zoom ──────────────────────────────────────────────────────────
   function zoomAt(clientX, clientY, zoomFactor) {
     const rect = viewportRef.current.getBoundingClientRect();
     const sx = clientX - rect.left;
@@ -126,37 +123,36 @@ function openEditInline() {
 
     setCamera((c) => {
       const nextScale = clamp(c.scale * zoomFactor, 0.3, 2.5);
-
       const worldX = (sx - c.x) / c.scale;
       const worldY = (sy - c.y) / c.scale;
-
-      const nextX = sx - worldX * nextScale;
-      const nextY = sy - worldY * nextScale;
-
-      return { x: nextX, y: nextY, scale: nextScale };
+      return {
+        x: sx - worldX * nextScale,
+        y: sy - worldY * nextScale,
+        scale: nextScale,
+      };
     });
   }
 
   function handleWheel(e) {
     e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-    zoomAt(e.clientX, e.clientY, zoomFactor);
+    zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.1 : 0.9);
   }
 
-  // Pan with right mouse button OR middle mouse button
+  // ── Pan / right-click ─────────────────────────────────────────────
   function handleMouseDown(e) {
-    // close menu on left click anywhere
     if (e.button === 0 && menu.open) closeMenu();
-
-    // right-click or middle-click pans
     if (e.button !== 1 && e.button !== 2) return;
     e.preventDefault();
 
-    panRef.current.active = true;
-    panRef.current.startX = e.clientX;
-    panRef.current.startY = e.clientY;
-    panRef.current.camStartX = camera.x;
-    panRef.current.camStartY = camera.y;
+    panRef.current = {
+      active: true,
+      moved: false,
+      button: e.button,
+      startX: e.clientX,
+      startY: e.clientY,
+      camStartX: camera.x,
+      camStartY: camera.y,
+    };
 
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
@@ -167,17 +163,39 @@ function openEditInline() {
     const dx = e.clientX - panRef.current.startX;
     const dy = e.clientY - panRef.current.startY;
 
-    setCamera((c) => ({
-      ...c,
-      x: panRef.current.camStartX + dx,
-      y: panRef.current.camStartY + dy,
-    }));
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      panRef.current.moved = true;
+    }
+
+    if (panRef.current.moved) {
+      setCamera((c) => ({
+        ...c,
+        x: panRef.current.camStartX + dx,
+        y: panRef.current.camStartY + dy,
+      }));
+    }
   }
 
-  function handleMouseUp() {
+  function handleMouseUp(e) {
+    const { moved, button, startX, startY } = panRef.current;
     panRef.current.active = false;
+    panRef.current.moved = false;
     window.removeEventListener("mousemove", handleMouseMove);
     window.removeEventListener("mouseup", handleMouseUp);
+
+    // Right-click that didn't pan → open canvas context menu
+    if (button === 2 && !moved) {
+      const world = screenToWorld(startX, startY);
+      setMenu({
+        open: true,
+        x: startX,
+        y: startY,
+        mode: "canvas",
+        noteId: null,
+        worldX: world.x,
+        worldY: world.y,
+      });
+    }
   }
 
   function zoomIn() {
@@ -194,169 +212,88 @@ function openEditInline() {
     setCamera({ x: 80, y: 80, scale: 1 });
   }
 
-  function openEditInline() {
-  setEditingNoteId(menu.noteId);
-  closeMenu();
-}
-
   return (
     <div className="board-page">
       {/* Top bar */}
       <div className="board-topbar">
-  <Link to="/" className="board-back-link">
-    ← Back
-  </Link>
- 
-  <div className="board-brand">
-    <div className="board-logo">
-      {/* Grid icon */}
-      <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="1" y="1" width="5" height="5" />
-        <rect x="8" y="1" width="5" height="5" />
-        <rect x="1" y="8" width="5" height="5" />
-        <rect x="8" y="8" width="5" height="5" />
-      </svg>
-    </div>
-    <span className="board-title">MiniMiro</span>
-  </div>
- 
-  <div className="board-divider" />
- 
-  <span className="board-subtitle">{boardId}</span>
- 
-  <div className="board-toolbar">
-    <button className="add-note-btn" onClick={handleAdd}>
-      + Add Note
-    </button>
-    <div className="board-toolbar-sep" />
-    <button className="btn-zoom" onClick={zoomOut} title="Zoom out">−</button>
-    <button className="btn-zoom" onClick={zoomIn}  title="Zoom in">+</button>
-    <button onClick={resetView}>Reset</button>
-  </div>
-</div>
- 
- 
+        <Link to="/" className="board-back-link">← Back</Link>
+
+        <div className="board-brand">
+          <div className="board-logo">
+            <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="1" y="1" width="5" height="5" />
+              <rect x="8" y="1" width="5" height="5" />
+              <rect x="1" y="8" width="5" height="5" />
+              <rect x="8" y="8" width="5" height="5" />
+            </svg>
+          </div>
+          <span className="board-title">MiniMiro</span>
+        </div>
+
+        <div className="board-divider" />
+        <span className="board-subtitle">{boardId}</span>
+
+        <div className="board-toolbar">
+          <button className="add-note-btn" onClick={handleAdd}>+ Add Note</button>
+          <div className="board-toolbar-sep" />
+          <button className="btn-zoom" onClick={zoomOut} title="Zoom out">−</button>
+          <button className="btn-zoom" onClick={zoomIn} title="Zoom in">+</button>
+          <button onClick={resetView}>Reset</button>
+        </div>
+      </div>
 
       {/* Viewport */}
       <div
-  ref={viewportRef}
-  onWheel={handleWheel}
-  onMouseDown={handleMouseDown}
-  onContextMenu={(e) => e.preventDefault()}
-  className="board-viewport"
-  style={{
-    cursor: panRef.current.active ? "grabbing" : "default",
-  }}
->
-        {/* World layer (pan+zoom applied here) */}
- <div
-  className="board-world"
-  style={{
-    transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.scale})`,
-  }}
->
+        ref={viewportRef}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onContextMenu={(e) => e.preventDefault()}
+        className="board-viewport"
+        style={{ cursor: panRef.current.active ? "grabbing" : "default" }}
+      >
+        <div
+          className="board-world"
+          style={{
+            transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.scale})`,
+          }}
+        >
           {notes.map((n) => (
-           <Note
-  key={n._id}
-  note={n}
-  onPositionChange={onPositionChange}
-  screenToWorld={screenToWorld}
-  onOpenMenu={openMenu}
-  isEditing={editingNoteId === n._id}
-  onStartEdit={() => setEditingNoteId(n._id)}
-  onStopEdit={() => setEditingNoteId(null)}
-  onSaveEdit={async (noteId, text) => {
-    const updated = await updateNote(noteId, { text });
-    setNotes((prev) =>
-      prev.map((n) => (n._id === updated._id ? updated : n))
-    );
-    setEditingNoteId(null);
-  }}
-/>
+            <Note
+              key={n._id}
+              note={n}
+              onPositionChange={onPositionChange}
+              screenToWorld={screenToWorld}
+              onOpenMenu={openNoteMenu}
+              isEditing={editingNoteId === n._id}
+              onStartEdit={() => setEditingNoteId(n._id)}
+              onStopEdit={() => setEditingNoteId(null)}
+              onSaveEdit={async (noteId, text) => {
+                const updated = await updateNote(noteId, { text });
+                setNotes((prev) =>
+                  prev.map((n) => (n._id === updated._id ? updated : n))
+                );
+                setEditingNoteId(null);
+              }}
+            />
           ))}
         </div>
 
         <div className="board-hint">
-          Pan: Right click drag / Middle mouse drag • Zoom: Mouse wheel • Scale:{" "}
-          {camera.scale.toFixed(2)}
+          Right-click canvas to add • Right-click note for actions • Pan: right-click drag / middle mouse • Zoom: scroll • Scale: {camera.scale.toFixed(2)}
         </div>
       </div>
 
-      {/* Context Menu */}
+      {/* Unified Context Menu */}
       <ContextMenu
         open={menu.open}
         x={menu.x}
         y={menu.y}
+        mode={menu.mode}
         onClose={closeMenu}
+        onAddNote={() => addNoteAt(menu.worldX - 90, menu.worldY - 20)}
         onEdit={openEditInline}
         onDelete={openDeleteModal}
       />
-
-      {/* Edit Modal */}
-      <Modal
-        open={editModal.open}
-        title="Edit note"
-        onClose={() => setEditModal({ open: false, noteId: null, text: "" })}
-      >
-        <textarea
-  value={editModal.text}
-  onChange={(e) =>
-    setEditModal((m) => ({ ...m, text: e.target.value }))
-  }
-  rows={7}
-  style={{
-    width: "100%",
-    resize: "vertical",
-    padding: 14,
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.04)",
-    color: "white",
-    outline: "none",
-    fontSize: 15,
-    lineHeight: 1.5,
-    boxSizing: "border-box",
-  }}
-  autoFocus
-/>
-
-<div
-  style={{
-    display: "flex",
-    gap: 10,
-    justifyContent: "flex-end",
-    marginTop: 14,
-  }}
->
-  <button
-    onClick={() =>
-      setEditModal({ open: false, noteId: null, text: "" })
-    }
-    style={secondaryBtn}
-  >
-    Cancel
-  </button>
-
-  <button
-    onClick={async () => {
-      const id = editModal.noteId;
-      if (!id) return;
-
-      const text = editModal.text.trim();
-      const updated = await updateNote(id, { text });
-
-      setNotes((prev) =>
-        prev.map((n) => (n._id === updated._id ? updated : n))
-      );
-
-      setEditModal({ open: false, noteId: null, text: "" });
-    }}
-    style={primaryBtn}
-  >
-    Save changes
-  </button>
-</div>
-      </Modal>
 
       {/* Delete Modal */}
       <Modal
@@ -364,65 +301,35 @@ function openEditInline() {
         title="Delete note?"
         onClose={() => setDeleteModal({ open: false, noteId: null })}
       >
-       <div
-  style={{
-    opacity: 0.9,
-    lineHeight: 1.5,
-    fontSize: 14,
-    padding: "4px 2px",
-  }}
->
-  This note will be permanently removed from the board.
-</div>
-
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            justifyContent: "flex-end",
-            marginTop: 14,
-          }}
-        >
+        <div className="modal-delete-icon">🗑️</div>
+        <div className="modal-delete-message">
+          This note will be permanently removed from the board. This action cannot be undone.
+        </div>
+        <div className="modal-actions">
           <button
+            className="modal-btn modal-btn-secondary"
             onClick={() => setDeleteModal({ open: false, noteId: null })}
-            style={secondaryBtn}
           >
             Cancel
           </button>
-
           <button
+            className="modal-btn modal-btn-danger"
             onClick={async () => {
               const id = deleteModal.noteId;
               if (!id) return;
-
               await deleteNote(id);
               setNotes((prev) => prev.filter((n) => n._id !== id));
-
               setDeleteModal({ open: false, noteId: null });
             }}
-            style={dangerBtn}
           >
-            Delete
+            Delete note
           </button>
         </div>
       </Modal>
     </div>
   );
 }
-const primaryBtn = {
-  border: "1px solid rgba(79,125,255,0.35)",
-  background: "rgba(79,125,255,0.12)",
-  color: "#2a52cc",
-  borderRadius: 8,
-  padding: "9px 16px",
-  cursor: "pointer",
-  fontWeight: 600,
-  fontSize: 13,
-  fontFamily: "var(--font)",
-  letterSpacing: "0.01em",
-  transition: "background 0.15s",
-};
- 
+
 const secondaryBtn = {
   border: "1px solid rgba(0,0,0,0.1)",
   background: "transparent",
@@ -436,7 +343,7 @@ const secondaryBtn = {
   letterSpacing: "0.01em",
   transition: "background 0.15s, color 0.15s",
 };
- 
+
 const dangerBtn = {
   border: "1px solid rgba(224,60,60,0.3)",
   background: "rgba(224,60,60,0.08)",

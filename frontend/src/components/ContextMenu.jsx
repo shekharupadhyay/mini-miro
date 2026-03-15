@@ -6,8 +6,13 @@ export default function ContextMenu({
   x,
   y,
   onClose,
+  // Note actions (when right-clicking a note)
   onEdit,
   onDelete,
+  // Canvas actions (when right-clicking empty canvas)
+  onAddNote,
+  // "canvas" | "note"
+  mode = "note",
 }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ x, y });
@@ -38,7 +43,7 @@ export default function ContextMenu({
     if (!open) return;
 
     const menuWidth = 220;
-    const menuHeight = 120;
+    const menuHeight = mode === "canvas" ? 80 : 120;
     const padding = 12;
 
     let nextX = x;
@@ -53,7 +58,7 @@ export default function ContextMenu({
     }
 
     setPos({ x: nextX, y: nextY });
-  }, [open, x, y]);
+  }, [open, x, y, mode]);
 
   if (!open) return null;
 
@@ -61,34 +66,52 @@ export default function ContextMenu({
     <div
       ref={ref}
       className="context-menu"
-      style={{
-        left: pos.x,
-        top: pos.y,
-      }}
+      style={{ left: pos.x, top: pos.y }}
     >
-      <div className="context-menu-label">Note actions</div>
+      {mode === "canvas" ? (
+        <>
+          <div className="context-menu-label">Add to board</div>
 
-      <button
-        className="context-menu-btn"
-        onClick={() => {
-          onEdit();
-          onClose();
-        }}
-      >
-        <span>✏️ Edit note</span>
-        <span className="context-menu-hint">Enter</span>
-      </button>
+          <button
+            className="context-menu-btn"
+            onClick={() => {
+              onAddNote?.();
+              onClose();
+            }}
+          >
+            <span>🗒️ Sticky note</span>
+            <span className="context-menu-hint">N</span>
+          </button>
 
-      <button
-        className="context-menu-btn danger"
-        onClick={() => {
-          onDelete();
-          onClose();
-        }}
-      >
-        <span>🗑 Delete note</span>
-        <span className="context-menu-hint">Del</span>
-      </button>
+          {/* Future items slot — add more buttons here */}
+        </>
+      ) : (
+        <>
+          <div className="context-menu-label">Note actions</div>
+
+          <button
+            className="context-menu-btn"
+            onClick={() => {
+              onEdit?.();
+              onClose();
+            }}
+          >
+            <span>✏️ Edit note</span>
+            <span className="context-menu-hint">Enter</span>
+          </button>
+
+          <button
+            className="context-menu-btn danger"
+            onClick={() => {
+              onDelete?.();
+              onClose();
+            }}
+          >
+            <span>🗑 Delete note</span>
+            <span className="context-menu-hint">Del</span>
+          </button>
+        </>
+      )}
     </div>
   );
 }
