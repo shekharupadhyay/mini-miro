@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchNotes, createNote, updateNote, deleteNote } from "../api/notesApi";
+import { fetchShapes, createShape, updateShape } from "../api/shapesApi";
 import Modal from "../components/Modal";
 import ContextMenu from "../components/ContextMenu";
 import Note from "../components/Note";
+import Shape from "../components/Shape";
 import "./board.css";
 
 function clamp(n, min, max) {
@@ -15,6 +17,8 @@ export default function Board() {
   const viewportRef = useRef(null);
 
   const [notes, setNotes] = useState([]);
+  const [shapes, setShapes] = useState([]);
+  const [selectedShapeId, setSelectedShapeId] = useState(null);
 
   // Single menu state — mode tells ContextMenu which section to render
   const [menu, setMenu] = useState({
@@ -46,11 +50,15 @@ export default function Board() {
     moved: false,
   });
 
-  // Load notes
+  // Load notes + shapes
   useEffect(() => {
     (async () => {
-      const data = await fetchNotes(boardId);
-      setNotes(data);
+      const [notesData, shapesData] = await Promise.all([
+        fetchNotes(boardId),
+        fetchShapes(boardId),
+      ]);
+      setNotes(notesData);
+      setShapes(shapesData);
       setCamera((c) => ({ ...c, x: 80, y: 80 }));
     })();
   }, [boardId]);
@@ -74,12 +82,12 @@ export default function Board() {
   }, [camera]);
 
   // ── Add note ──────────────────────────────────────────────────────
-  async function addNoteAt(worldX, worldY) {
+  async function addNoteAt(worldX, worldY, color = "yellow") {
     const newNote = await createNote(boardId, {
       text: "",
       x: Math.round(worldX),
       y: Math.round(worldY),
-      color: "yellow",
+      color,
     });
     setNotes((prev) => [...prev, newNote]);
     setEditingNoteId(newNote._id);
@@ -94,6 +102,37 @@ export default function Board() {
     );
     await addNoteAt(world.x, world.y);
   }
+
+  // ── Add shape ─────────────────────────────────────────────────────
+  async function addShapeAt(worldX, worldY, { shape }) {
+    const isLine = shape === "line";
+    const saved = await createShape(boardId, {
+      shape,
+      x: Math.round(worldX),
+      y: Math.round(worldY),
+      w: isLine ? 160 : 120,
+      h: isLine ? 4   : 120,
+      text:     "",
+      color:    "black",
+      fillMode: "none",
+    });
+    setShapes(prev => [...prev, saved]);
+    setSelectedShapeId(saved._id);
+  }
+
+  // Debounce timer ref — avoids hammering the API on every pixel during resize/drag
+  const updateTimerRef = useRef({});
+
+  const handleShapeUpdate = useCallback((id, patch) => {
+    // Update local state immediately for smooth interaction
+    setShapes(prev => prev.map(sh => sh._id === id ? { ...sh, ...patch } : sh));
+
+    // Debounce the API call — flush 300ms after the last update
+    clearTimeout(updateTimerRef.current[id]);
+    updateTimerRef.current[id] = setTimeout(() => {
+      updateShape(id, patch).catch(console.error);
+    }, 300);
+  }, []);
 
   // ── Menu helpers ──────────────────────────────────────────────────
   function closeMenu() {
@@ -140,7 +179,10 @@ export default function Board() {
 
   // ── Pan / right-click ─────────────────────────────────────────────
   function handleMouseDown(e) {
-    if (e.button === 0 && menu.open) closeMenu();
+    if (e.button === 0) {
+      if (menu.open) closeMenu();
+      setSelectedShapeId(null); // click on canvas deselects shape
+    }
     if (e.button !== 1 && e.button !== 2) return;
     e.preventDefault();
 
@@ -276,6 +318,17 @@ export default function Board() {
               }}
             />
           ))}
+
+          {shapes.map((s) => (
+            <Shape
+              key={s._id}
+              shape={s}
+              isSelected={selectedShapeId === s._id}
+              onSelect={id => setSelectedShapeId(id)}
+              onDeselect={() => setSelectedShapeId(null)}
+              onUpdate={handleShapeUpdate}
+            />
+          ))}
         </div>
 
         <div className="board-hint">
@@ -290,7 +343,8 @@ export default function Board() {
         y={menu.y}
         mode={menu.mode}
         onClose={closeMenu}
-        onAddNote={() => addNoteAt(menu.worldX - 90, menu.worldY - 20)}
+        onAddNote={({ color } = {}) => addNoteAt(menu.worldX - 90, menu.worldY - 20, color)}
+        onAddShape={({ shape }) => addShapeAt(menu.worldX - 60, menu.worldY - 60, { shape })}
         onEdit={openEditInline}
         onDelete={openDeleteModal}
       />

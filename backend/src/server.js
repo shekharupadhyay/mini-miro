@@ -5,6 +5,8 @@ import cors from "cors";
 import { Server } from "socket.io";
 import { connectDB } from "./db.js";
 import notesRoutes from "./routes/notes.js";
+import shapesRouter from "./routes/shapes.js";
+
 
 const app = express();
 
@@ -18,6 +20,7 @@ app.use(
 );
 
 app.use("/api", notesRoutes);
+app.use("/api", shapesRouter);
 // health check
 app.get("/health", (req, res) => {
   res.json({ ok: true, message: "Backend is running" });
