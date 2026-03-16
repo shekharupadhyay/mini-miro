@@ -229,6 +229,54 @@
   color: #4f7dff;
 }
 
+.left-toolbar-divider {
+  width: 32px;
+  height: 1px;
+  background: rgba(0,0,0,0.07);
+  margin: 2px 0;
+}
+
+/* Shape type sub-panel — appears below shape button */
+.left-toolbar-shape-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 0 2px;
+  animation: picker-slide-in 0.14s ease-out;
+}
+
+@keyframes picker-slide-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.left-toolbar-shape-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(0,0,0,0.08);
+  background: #f9fafb;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, border-color 0.12s, transform 0.1s, box-shadow 0.12s;
+  align-self: center;
+}
+
+.left-toolbar-shape-btn:hover {
+  background: #eef2ff;
+  border-color: rgba(79,125,255,0.3);
+  transform: scale(1.08);
+}
+
+.left-toolbar-shape-btn.active {
+  background: rgba(79,125,255,0.12);
+  border-color: rgba(79,125,255,0.5);
+  box-shadow: 0 0 0 3px rgba(79,125,255,0.15);
+}
+
 .left-toolbar-label {
   font-family: 'DM Sans', system-ui, sans-serif;
   font-size: 10px;

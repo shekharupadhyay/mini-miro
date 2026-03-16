@@ -42,16 +42,18 @@ router.put("/notes/:noteId", async (req, res) => {
   res.json(updated);
 });
 
-// PATCH update note content, color, and/or size
+// PATCH update note content, color, size, text color, font
 router.patch("/notes/:noteId", async (req, res) => {
   const { noteId } = req.params;
-  const { text, color, w, h } = req.body;
+  const { text, color, w, h, textColor, fontFamily } = req.body;
 
   const update = {};
-  if (text  !== undefined) update.text  = text;
-  if (color !== undefined) update.color = color;
-  if (w     !== undefined) update.w     = w;
-  if (h     !== undefined) update.h     = h;
+  if (text       !== undefined) update.text       = text;
+  if (color      !== undefined) update.color      = color;
+  if (w          !== undefined) update.w          = w;
+  if (h          !== undefined) update.h          = h;
+  if (textColor  !== undefined) update.textColor  = textColor;
+  if (fontFamily !== undefined) update.fontFamily = fontFamily;
 
   const updated = await Note.findByIdAndUpdate(noteId, update, { new: true });
   if (!updated) return res.status(404).json({ error: "Note not found" });

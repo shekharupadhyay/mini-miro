@@ -216,6 +216,42 @@
   background: rgba(0,0,0,0.07);
 }
 
+.context-menu-divider {
+  height: 1px;
+  background: rgba(0,0,0,0.07);
+}
+
+/* ── Font picker ─────────────────────────────────────────── */
+.font-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 2px 4px 4px;
+}
+
+.font-btn {
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(0,0,0,0.08);
+  background: #f9fafb;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(17,19,24,0.6);
+  text-align: center;
+  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+.font-btn:hover {
+  background: #f0f1f3;
+  border-color: rgba(0,0,0,0.15);
+}
+.font-btn.active {
+  background: rgba(79,125,255,0.08);
+  border-color: rgba(79,125,255,0.4);
+  color: #4f7dff;
+  box-shadow: 0 0 0 3px rgba(79,125,255,0.12);
+}
+
 @keyframes picker-in {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }

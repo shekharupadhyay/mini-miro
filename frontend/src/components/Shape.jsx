@@ -42,16 +42,26 @@ export default function Shape({
   onOpenMenu,
   onStopEdit,      // () => void — called when textarea blurs/commits
 }) {
-  const { _id, shape, x, y, w, h, text, color = "black", fillMode = "none" } = shapeData;
+  const { _id, shape, x, y, w, h, text, color = "black", fillMode = "none",
+          textColor = null, fontFamily = "sans" } = shapeData;
+
+  const FONT_MAP = {
+    sans:        "DM Sans, system-ui, sans-serif",
+    serif:       "Georgia, serif",
+    mono:        "monospace",
+    handwriting: "cursive",
+  };
 
   const elRef       = useRef(null);
   const [editing,   setEditing]   = useState(false);
   const [draft,     setDraft]     = useState(text ?? "");
   const textareaRef = useRef(null);
 
-  const colorHex = COLORS.find(c => c.id === color)?.hex ?? "#1a1a1a";
+  const colorHex    = COLORS.find(c => c.id === color)?.hex ?? "#1a1a1a";
   const strokeColor = colorHex;
   const fillColor   = getFill(colorHex, fillMode);
+  const resolvedTextColor = textColor ?? strokeColor;
+  const resolvedFont      = FONT_MAP[fontFamily] ?? FONT_MAP.sans;
   const isLine      = shape === "line";
   const svgW        = w;
   const svgH        = isLine ? 4 : h;
@@ -134,7 +144,6 @@ export default function Shape({
   // ── Text edit ─────────────────────────────────────────────────────
   function handleDoubleClick(e) {
     e.stopPropagation();
-    if (isLine) return;
     setDraft(text ?? "");
     setEditing(true);
   }
@@ -179,11 +188,15 @@ export default function Shape({
     );
   }
 
+  // For lines: expand container height when text is present or being edited
+  const lineHasLabel = isLine && (text || editing);
+  const containerH = isLine ? (lineHasLabel ? 36 : 4) : svgH;
+
   return (
     <div
       ref={elRef}
       className={`shape-card${isSelected ? " selected" : ""}`}
-      style={{ left: x, top: y, width: svgW, height: svgH }}
+      style={{ left: x, top: y, width: svgW, height: containerH }}
       onMouseDown={handleBodyMouseDown}
       onDoubleClick={handleDoubleClick}
       onContextMenu={e => {
@@ -193,18 +206,29 @@ export default function Shape({
         onOpenMenu?.({ shapeId: _id, x: e.clientX, y: e.clientY });
       }}
     >
-      {renderSVG()}
+      {/* For lines, render the line at the bottom of the container */}
+      {isLine ? (
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}>
+          {renderSVG()}
+        </div>
+      ) : renderSVG()}
 
+      {/* Text overlay for non-lines */}
       {!editing && text && !isLine && (
-        <div className="shape-text-overlay" style={{ color: strokeColor }}>{text}</div>
+        <div className="shape-text-overlay" style={{ color: resolvedTextColor, fontFamily: resolvedFont }}>{text}</div>
+      )}
+
+      {/* Label above line */}
+      {!editing && text && isLine && (
+        <div className="shape-line-label" style={{ color: resolvedTextColor, fontFamily: resolvedFont }}>{text}</div>
       )}
 
       {editing && (
-        <div className="shape-textarea-wrap">
+        <div className={isLine ? "shape-line-label-edit" : "shape-textarea-wrap"}>
           <div
             ref={textareaRef}
             className="shape-textarea"
-            style={{ color: strokeColor }}
+            style={{ color: resolvedTextColor, fontFamily: resolvedFont }}
             contentEditable
             suppressContentEditableWarning
             onInput={e => setDraft(e.currentTarget.textContent)}
@@ -236,8 +260,10 @@ export default function Shape({
       )}
 
       {/* Double-click hint */}
-      {isSelected && !editing && !isLine && (
-        <div className="shape-hint">Double-click to edit text</div>
+      {isSelected && !editing && (
+        <div className="shape-hint">
+          {isLine ? "Double-click to add label" : "Double-click to edit text"}
+        </div>
       )}
     </div>
   );

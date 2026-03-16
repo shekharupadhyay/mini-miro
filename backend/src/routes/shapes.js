@@ -29,19 +29,21 @@ router.post("/boards/:boardId/shapes", async (req, res) => {
   res.status(201).json(shape);
 });
 
-// PATCH update shape (position, size, text, color, fillMode)
+// PATCH update shape (position, size, text, color, fillMode, textColor, fontFamily)
 router.patch("/shapes/:shapeId", async (req, res) => {
   const { shapeId } = req.params;
-  const { x, y, w, h, text, color, fillMode } = req.body;
+  const { x, y, w, h, text, color, fillMode, textColor, fontFamily } = req.body;
 
   const update = {};
-  if (x        !== undefined) update.x        = x;
-  if (y        !== undefined) update.y        = y;
-  if (w        !== undefined) update.w        = w;
-  if (h        !== undefined) update.h        = h;
-  if (text     !== undefined) update.text     = text;
-  if (color    !== undefined) update.color    = color;
-  if (fillMode !== undefined) update.fillMode = fillMode;
+  if (x          !== undefined) update.x          = x;
+  if (y          !== undefined) update.y          = y;
+  if (w          !== undefined) update.w          = w;
+  if (h          !== undefined) update.h          = h;
+  if (text       !== undefined) update.text       = text;
+  if (color      !== undefined) update.color      = color;
+  if (fillMode   !== undefined) update.fillMode   = fillMode;
+  if (textColor  !== undefined) update.textColor  = textColor;
+  if (fontFamily !== undefined) update.fontFamily = fontFamily;
 
   const updated = await Shape.findByIdAndUpdate(shapeId, update, { new: true });
   if (!updated) return res.status(404).json({ error: "Shape not found" });

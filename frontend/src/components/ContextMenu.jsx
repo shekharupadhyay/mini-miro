@@ -36,6 +36,24 @@ const FILL_MODES = [
   { id: "solid", label: "Solid",   icon: "●" },
 ];
 
+const FONTS = [
+  { id: "sans",        label: "Sans",   style: "system-ui, sans-serif" },
+  { id: "serif",       label: "Serif",  style: "Georgia, serif" },
+  { id: "mono",        label: "Mono",   style: "monospace" },
+  { id: "handwriting", label: "Hand",   style: "cursive" },
+];
+
+const TEXT_COLORS = [
+  { id: "#111318", hex: "#111318" },
+  { id: "#ef4444", hex: "#ef4444" },
+  { id: "#fb923c", hex: "#fb923c" },
+  { id: "#eab308", hex: "#eab308" },
+  { id: "#22c55e", hex: "#22c55e" },
+  { id: "#3b82f6", hex: "#3b82f6" },
+  { id: "#a855f7", hex: "#a855f7" },
+  { id: "#ec4899", hex: "#ec4899" },
+];
+
 export default function ContextMenu({
   open, x, y, onClose,
   onEdit, onDelete,
@@ -48,6 +66,11 @@ export default function ContextMenu({
   onShapeFill,
   currentShapeColor = "black",
   currentShapeFill  = "none",
+  // text styling — shared by notes and shapes
+  onTextColor,
+  onFontFamily,
+  currentTextColor  = "#111318",
+  currentFontFamily = "sans",
   mode = "note",
 }) {
   const ref = useRef(null);
@@ -80,9 +103,9 @@ export default function ContextMenu({
       else if (expanded === "shape") menuHeight = 160;
       else menuHeight = 80;
     } else if (mode === "note") {
-      menuHeight = 210;
+      menuHeight = 340;
     } else if (mode === "shape") {
-      menuHeight = 280;
+      menuHeight = 400;
     } else {
       menuHeight = 120;
     }
@@ -202,6 +225,36 @@ export default function ContextMenu({
           </div>
 
           <div className="context-menu-divider" style={{ margin: "6px 4px" }} />
+
+          {/* Text styling */}
+          <div className="context-menu-label">Text colour</div>
+          <div className="shape-color-row">
+            {TEXT_COLORS.map(c => (
+              <button
+                key={c.id}
+                className={`shape-color-dot${currentTextColor === c.id ? " active" : ""}`}
+                title={c.id}
+                style={{ "--dot": c.hex }}
+                onClick={() => onTextColor?.(c.id)}
+              />
+            ))}
+          </div>
+
+          <div className="context-menu-label" style={{ marginTop: 4 }}>Font</div>
+          <div className="font-row">
+            {FONTS.map(f => (
+              <button
+                key={f.id}
+                className={`font-btn${currentFontFamily === f.id ? " active" : ""}`}
+                style={{ fontFamily: f.style }}
+                onClick={() => onFontFamily?.(f.id)}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="context-menu-divider" style={{ margin: "6px 4px" }} />
           <button className="context-menu-btn danger" onClick={() => { onDeleteShape?.(); onClose(); }}>
             <span>🗑 Delete shape</span>
             <span className="context-menu-hint">Del</span>
@@ -216,7 +269,7 @@ export default function ContextMenu({
             <span className="context-menu-hint">Enter</span>
           </button>
 
-          <div className="context-menu-label" style={{ marginTop: 4 }}>Colour</div>
+          <div className="context-menu-label" style={{ marginTop: 4 }}>Note colour</div>
           <div className="context-menu-color-picker">
             {NOTE_COLORS.map((c) => (
               <button
@@ -235,7 +288,36 @@ export default function ContextMenu({
             ))}
           </div>
 
-          <button className="context-menu-btn danger" style={{ marginTop: 4 }} onClick={() => { onDelete?.(); onClose(); }}>
+          {/* Text styling */}
+          <div className="context-menu-label" style={{ marginTop: 4 }}>Text colour</div>
+          <div className="shape-color-row">
+            {TEXT_COLORS.map(c => (
+              <button
+                key={c.id}
+                className={`shape-color-dot${currentTextColor === c.id ? " active" : ""}`}
+                title={c.id}
+                style={{ "--dot": c.hex }}
+                onClick={() => onTextColor?.(c.id)}
+              />
+            ))}
+          </div>
+
+          <div className="context-menu-label" style={{ marginTop: 4 }}>Font</div>
+          <div className="font-row">
+            {FONTS.map(f => (
+              <button
+                key={f.id}
+                className={`font-btn${currentFontFamily === f.id ? " active" : ""}`}
+                style={{ fontFamily: f.style }}
+                onClick={() => onFontFamily?.(f.id)}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="context-menu-divider" style={{ margin: "6px 4px" }} />
+          <button className="context-menu-btn danger" onClick={() => { onDelete?.(); onClose(); }}>
             <span>🗑 Delete note</span>
             <span className="context-menu-hint">Del</span>
           </button>

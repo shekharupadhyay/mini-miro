@@ -137,6 +137,18 @@ export default function Note({
   const w = note.w ?? 180;
   const h = note.h ?? 110;
 
+  const FONT_MAP = {
+    sans:        "system-ui, sans-serif",
+    serif:       "Georgia, serif",
+    mono:        "monospace",
+    handwriting: "cursive",
+  };
+
+  const textStyle = {
+    color:      note.textColor  ?? "inherit",
+    fontFamily: FONT_MAP[note.fontFamily] ?? "inherit",
+  };
+
   return (
     <div
       className="note"
@@ -159,6 +171,7 @@ export default function Note({
           className="note-editor"
           contentEditable
           suppressContentEditableWarning
+          style={textStyle}
           onInput={e => setDraftText(e.currentTarget.textContent)}
           onBlur={saveEdit}
           onKeyDown={(e) => {
@@ -168,7 +181,7 @@ export default function Note({
           onMouseDown={e => e.stopPropagation()}
         />
       ) : (
-        <div className="note-content">{note.text}</div>
+        <div className="note-content" style={textStyle}>{note.text}</div>
       )}
 
       {/* Resize handle — bottom-right corner, visible on hover */}

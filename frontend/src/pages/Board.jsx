@@ -215,10 +215,17 @@ export default function Board() {
   // ── Pan / right-click ─────────────────────────────────────────────
   function handleMouseDown(e) {
     if (e.button === 0) {
-      // Placement mode — drop a note at click position
+      // Placement mode — drop a note or shape at click position
       if (placingTool === "note") {
         const world = screenToWorld(e.clientX, e.clientY);
         addNoteAt(world.x, world.y);
+        setPlacingTool(null);
+        return;
+      }
+      if (placingTool?.startsWith("shape:")) {
+        const world = screenToWorld(e.clientX, e.clientY);
+        const shapeType = placingTool.split(":")[1];
+        addShapeAt(world.x, world.y, { shape: shapeType });
         setPlacingTool(null);
         return;
       }
@@ -333,7 +340,7 @@ export default function Board() {
         onMouseDown={handleMouseDown}
         onContextMenu={(e) => e.preventDefault()}
         className="board-viewport"
-        style={{ cursor: placingTool === "note" ? "crosshair" : panRef.current.active ? "grabbing" : "default" }}
+        style={{ cursor: (placingTool) ? "crosshair" : panRef.current.active ? "grabbing" : "default" }}
       >
         <div
           className="board-world"
@@ -394,16 +401,33 @@ export default function Board() {
         onChangeColor={({ color }) => handleNoteUpdate(menu.noteId, { color })}
         onEditShape={openShapeEdit}
         onDeleteShape={handleDeleteShape}
-        onShapeColor={colorId => {
-          console.log("onShapeColor", colorId, "shapeId:", menu.shapeId, "shapes:", shapes.map(s=>s._id));
-          handleShapeUpdate(menu.shapeId, { color: colorId });
-        }}
-        onShapeFill={fillId => {
-          console.log("onShapeFill", fillId, "shapeId:", menu.shapeId);
-          handleShapeUpdate(menu.shapeId, { fillMode: fillId });
-        }}
-        currentShapeColor={shapes.find(s => s._id === menu.shapeId)?.color ?? "black"}
-        currentShapeFill={shapes.find(s => s._id === menu.shapeId)?.fillMode ?? "none"}
+        onShapeColor={colorId => handleShapeUpdate(menu.shapeId, { color: colorId })}
+        onShapeFill={fillId   => handleShapeUpdate(menu.shapeId, { fillMode: fillId })}
+        currentShapeColor={shapes.find(s => s._id === menu.shapeId)?.color      ?? "black"}
+        currentShapeFill={shapes.find(s  => s._id === menu.shapeId)?.fillMode   ?? "none"}
+        onTextColor={colorId  => menu.mode === "note"
+          ? handleNoteUpdate(menu.noteId,   { textColor: colorId })
+          : handleShapeUpdate(menu.shapeId, { textColor: colorId })}
+        onFontFamily={fontId  => menu.mode === "note"
+          ? handleNoteUpdate(menu.noteId,   { fontFamily: fontId })
+          : handleShapeUpdate(menu.shapeId, { fontFamily: fontId })}
+        currentTextColor={(() => {
+          if (menu.mode === "note") {
+            return notes.find(n => n._id === menu.noteId)?.textColor ?? "#111318";
+          }
+          const s = shapes.find(s => s._id === menu.shapeId);
+          if (!s) return "#111318";
+          // If textColor is explicitly set, use it; otherwise show the shape's stroke color
+          if (s.textColor) return s.textColor;
+          const SHAPE_COLOR_HEX = {
+            black: "#1a1a1a", red: "#ef4444", orange: "#fb923c", yellow: "#eab308",
+            green: "#22c55e", blue: "#3b82f6", purple: "#a855f7", pink: "#ec4899",
+          };
+          return SHAPE_COLOR_HEX[s.color ?? "black"] ?? "#1a1a1a";
+        })()}
+        currentFontFamily={menu.mode === "note"
+          ? (notes.find(n  => n._id === menu.noteId)?.fontFamily  ?? "sans")
+          : (shapes.find(s => s._id === menu.shapeId)?.fontFamily ?? "sans")}
       />
 
       {/* Delete Modal */}
@@ -447,6 +471,39 @@ export default function Board() {
           🗒️
           <span className="left-toolbar-label">Note</span>
         </button>
+
+        <div className="left-toolbar-divider" />
+
+        {/* Shape button — toggles inline shape picker */}
+        <button
+          className={`left-toolbar-btn${placingTool?.startsWith("shape:") ? " active" : ""}`}
+          onClick={() => setPlacingTool(v => v?.startsWith("shape:") ? null : "shape:rectangle")}
+          title="Add shape"
+        >
+          🔷
+          <span className="left-toolbar-label">Shape</span>
+        </button>
+
+        {/* Shape type sub-panel */}
+        {placingTool?.startsWith("shape:") && (
+          <div className="left-toolbar-shape-picker">
+            {[
+              { id: "rectangle", icon: "▭" },
+              { id: "circle",    icon: "○" },
+              { id: "triangle",  icon: "△" },
+              { id: "line",      icon: "╱" },
+            ].map(s => (
+              <button
+                key={s.id}
+                className={`left-toolbar-shape-btn${placingTool === `shape:${s.id}` ? " active" : ""}`}
+                title={s.id}
+                onClick={() => setPlacingTool(`shape:${s.id}`)}
+              >
+                {s.icon}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
     </div>
