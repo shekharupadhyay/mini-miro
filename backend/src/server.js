@@ -13,7 +13,11 @@ const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: process.env.CLIENT_ORIGIN,
+    origin: true,
+    // [
+    //   process.env.CLIENT_ORIGIN,
+    //    "https://roni-nonhedonic-flaggingly.ngrok-free.dev"
+    // ],
     credentials: true,
   })
 );
@@ -88,6 +92,17 @@ io.on("connection", (socket) => {
 
   socket.on("shape:deleted", (data) => {
     socket.to(currentBoard).emit("shape:deleted", data);
+  });
+
+  // ── Chat ──────────────────────────────────────────────────────────
+  socket.on("chat:message", ({ text }) => {
+    const msg = {
+      id: `${socket.id}-${Date.now()}`,
+      username: presence[currentBoard]?.[socket.id] ?? "Guest",
+      text,
+      timestamp: Date.now(),
+    };
+    io.to(currentBoard).emit("chat:message", msg);
   });
 
   // ── Disconnect ───────────────────────────────────────────────────
