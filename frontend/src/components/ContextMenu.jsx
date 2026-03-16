@@ -19,18 +19,40 @@ const SHAPES = [
   { id: "line",      label: "Line",     icon: "╱" },
 ];
 
+const SHAPE_COLORS = [
+  { id: "black",  hex: "#1a1a1a" },
+  { id: "red",    hex: "#ef4444" },
+  { id: "orange", hex: "#fb923c" },
+  { id: "yellow", hex: "#eab308" },
+  { id: "green",  hex: "#22c55e" },
+  { id: "blue",   hex: "#3b82f6" },
+  { id: "purple", hex: "#a855f7" },
+  { id: "pink",   hex: "#ec4899" },
+];
+
+const FILL_MODES = [
+  { id: "none",  label: "No fill", icon: "○" },
+  { id: "semi",  label: "Semi",    icon: "◐" },
+  { id: "solid", label: "Solid",   icon: "●" },
+];
+
 export default function ContextMenu({
   open, x, y, onClose,
   onEdit, onDelete,
+  onChangeColor,
   onAddNote,
   onAddShape,
-  onEditShape,    // () => void
-  onDeleteShape,  // () => void
-  mode = "note",  // "canvas" | "note" | "shape"
+  onEditShape,
+  onDeleteShape,
+  onShapeColor,
+  onShapeFill,
+  currentShapeColor = "black",
+  currentShapeFill  = "none",
+  mode = "note",
 }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ x, y });
-  const [expanded, setExpanded] = useState(null); // null | "note" | "shape"
+  const [expanded, setExpanded] = useState(null);
   const [hoveredColor, setHoveredColor] = useState(null);
 
   useEffect(() => {
@@ -43,18 +65,26 @@ export default function ContextMenu({
     function onKey(e)  { if (e.key === "Escape") onClose(); }
     window.addEventListener("mousedown", onDown);
     window.addEventListener("keydown", onKey);
-    return () => { window.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey); };
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open, onClose]);
 
   useEffect(() => {
     if (!open) return;
     const menuWidth = 248;
-    let menuHeight = 80;
+    let menuHeight;
     if (mode === "canvas") {
       if (expanded === "note")  menuHeight = 144;
-      if (expanded === "shape") menuHeight = 160;
+      else if (expanded === "shape") menuHeight = 160;
+      else menuHeight = 80;
+    } else if (mode === "note") {
+      menuHeight = 210;
+    } else if (mode === "shape") {
+      menuHeight = 280;
     } else {
-      menuHeight = 120; // covers both "note" and "shape" modes
+      menuHeight = 120;
     }
     const padding = 12;
     let nextX = x, nextY = y;
@@ -68,13 +98,17 @@ export default function ContextMenu({
   function toggle(panel) { setExpanded(v => v === panel ? null : panel); }
 
   return (
-    <div ref={ref} className="context-menu" style={{ left: pos.x, top: pos.y }}>
+    <div
+      ref={ref}
+      className="context-menu"
+      style={{ left: pos.x, top: pos.y }}
+      onMouseDown={e => e.stopPropagation()}
+    >
 
       {mode === "canvas" ? (
         <>
           <div className="context-menu-label">Add to board</div>
 
-          {/* Sticky note */}
           <button
             className={`context-menu-btn${expanded === "note" ? " active" : ""}`}
             onClick={() => toggle("note")}
@@ -103,7 +137,6 @@ export default function ContextMenu({
             </div>
           )}
 
-          {/* Shape — just pick the type, everything else happens on canvas */}
           <button
             className={`context-menu-btn${expanded === "shape" ? " active" : ""}`}
             onClick={() => toggle("shape")}
@@ -131,6 +164,7 @@ export default function ContextMenu({
             </div>
           )}
         </>
+
       ) : mode === "shape" ? (
         <>
           <div className="context-menu-label">Shape actions</div>
@@ -138,11 +172,42 @@ export default function ContextMenu({
             <span>✏️ Edit text</span>
             <span className="context-menu-hint">Enter</span>
           </button>
+
+          <div className="context-menu-label" style={{ marginTop: 4 }}>Fill</div>
+          <div className="shape-fill-row">
+            {FILL_MODES.map(fm => (
+              <button
+                key={fm.id}
+                className={`shape-fill-btn${currentShapeFill === fm.id ? " active" : ""}`}
+                title={fm.label}
+                onClick={() => onShapeFill?.(fm.id)}
+              >
+                <span className="shape-fill-icon">{fm.icon}</span>
+                <span className="shape-fill-label">{fm.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="context-menu-label" style={{ marginTop: 4 }}>Colour</div>
+          <div className="shape-color-row">
+            {SHAPE_COLORS.map(c => (
+              <button
+                key={c.id}
+                className={`shape-color-dot${currentShapeColor === c.id ? " active" : ""}`}
+                title={c.id}
+                style={{ "--dot": c.hex }}
+                onClick={() => onShapeColor?.(c.id)}
+              />
+            ))}
+          </div>
+
+          <div className="context-menu-divider" style={{ margin: "6px 4px" }} />
           <button className="context-menu-btn danger" onClick={() => { onDeleteShape?.(); onClose(); }}>
             <span>🗑 Delete shape</span>
             <span className="context-menu-hint">Del</span>
           </button>
         </>
+
       ) : (
         <>
           <div className="context-menu-label">Note actions</div>
@@ -150,7 +215,27 @@ export default function ContextMenu({
             <span>✏️ Edit note</span>
             <span className="context-menu-hint">Enter</span>
           </button>
-          <button className="context-menu-btn danger" onClick={() => { onDelete?.(); onClose(); }}>
+
+          <div className="context-menu-label" style={{ marginTop: 4 }}>Colour</div>
+          <div className="context-menu-color-picker">
+            {NOTE_COLORS.map((c) => (
+              <button
+                key={c.id}
+                className="color-swatch"
+                style={{
+                  background: c.bg,
+                  borderColor: hoveredColor === c.id ? c.border : "rgba(0,0,0,0.1)",
+                  boxShadow: hoveredColor === c.id ? `0 0 0 3px ${c.border}44` : "none",
+                }}
+                title={c.label}
+                onMouseEnter={() => setHoveredColor(c.id)}
+                onMouseLeave={() => setHoveredColor(null)}
+                onClick={() => { onChangeColor?.({ color: c.id }); }}
+              />
+            ))}
+          </div>
+
+          <button className="context-menu-btn danger" style={{ marginTop: 4 }} onClick={() => { onDelete?.(); onClose(); }}>
             <span>🗑 Delete note</span>
             <span className="context-menu-hint">Del</span>
           </button>

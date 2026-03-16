@@ -46,7 +46,6 @@
   background: transparent;
   border: none;
   outline: none;
-  resize: none;
   font-family: 'DM Sans', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 600;
@@ -54,11 +53,10 @@
   cursor: text;
   padding: 0;
   line-height: 1.4;
-  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 1em;
   pointer-events: all;
-  /* grow to fit content, shrink to a single line when empty */
-  field-sizing: content;
-  min-height: 1lh;
 }
 
 /* ── Resize handles ───────────────────────────────────────── */

@@ -138,6 +138,84 @@
 }
 
 /* ── Animations ─────────────────────────────────────────── */
+/* ── Shape fill row ──────────────────────────────────────── */
+.shape-fill-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 2px 4px 4px;
+}
+
+.shape-fill-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 4px;
+  border-radius: 9px;
+  border: 1.5px solid rgba(0,0,0,0.08);
+  background: #f9fafb;
+  cursor: pointer;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+.shape-fill-btn:hover {
+  background: #f0f1f3;
+  border-color: rgba(0,0,0,0.15);
+}
+.shape-fill-btn.active {
+  background: rgba(79,125,255,0.08);
+  border-color: rgba(79,125,255,0.4);
+  box-shadow: 0 0 0 3px rgba(79,125,255,0.12);
+}
+.shape-fill-icon {
+  font-size: 16px;
+  line-height: 1;
+  color: #374151;
+}
+.shape-fill-btn.active .shape-fill-icon { color: #4f7dff; }
+.shape-fill-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(17,19,24,0.45);
+  letter-spacing: 0.02em;
+}
+.shape-fill-btn.active .shape-fill-label { color: #4f7dff; }
+
+/* ── Shape colour dots ───────────────────────────────────── */
+.shape-color-row {
+  display: flex;
+  gap: 5px;
+  padding: 2px 6px 6px;
+  flex-wrap: wrap;
+}
+
+.shape-color-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--dot);
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
+  flex-shrink: 0;
+}
+.shape-color-dot:hover {
+  transform: scale(1.2);
+  border-color: rgba(0,0,0,0.2);
+}
+.shape-color-dot.active {
+  border-color: rgba(0,0,0,0.35);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--dot);
+  transform: scale(1.1);
+}
+
+.context-menu-divider {
+  height: 1px;
+  background: rgba(0,0,0,0.07);
+}
+
 @keyframes picker-in {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }

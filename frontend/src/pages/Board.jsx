@@ -20,6 +20,7 @@ export default function Board() {
   const [shapes, setShapes] = useState([]);
   const [selectedShapeId, setSelectedShapeId] = useState(null);
   const [editingShapeId,  setEditingShapeId]  = useState(null);
+  const [placingTool,     setPlacingTool]     = useState(null); // null | "note"
 
   // Single menu state — mode tells ContextMenu which section to render
   const [menu, setMenu] = useState({
@@ -51,7 +52,14 @@ export default function Board() {
     moved: false,
   });
 
-  // Load notes + shapes
+  // Cancel placement mode on Escape
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "Escape") setPlacingTool(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   useEffect(() => {
     (async () => {
       const [notesData, shapesData] = await Promise.all([
@@ -64,11 +72,6 @@ export default function Board() {
     })();
   }, [boardId]);
 
-  function onPositionChange(id, x, y) {
-    setNotes((prev) =>
-      prev.map((n) => (n._id === id ? { ...n, x, y } : n))
-    );
-  }
 
   const screenToWorld = useMemo(() => {
     return (clientX, clientY) => {
@@ -82,26 +85,29 @@ export default function Board() {
     };
   }, [camera]);
 
+  // Live position update during note drag (local state only, API saved on mouseup in Note)
+  function onPositionChange(id, x, y) {
+    setNotes(prev => prev.map(n => n._id === id ? { ...n, x, y } : n));
+  }
+
   // ── Add note ──────────────────────────────────────────────────────
   async function addNoteAt(worldX, worldY, color = "yellow") {
     const newNote = await createNote(boardId, {
       text: "",
       x: Math.round(worldX),
       y: Math.round(worldY),
+      w: 200,
+      h: 120,
       color,
+      rotation: 0,
     });
     setNotes((prev) => [...prev, newNote]);
     setEditingNoteId(newNote._id);
   }
 
-  // Toolbar button — adds at screen center
-  async function handleAdd() {
-    const rect = viewportRef.current.getBoundingClientRect();
-    const world = screenToWorld(
-      rect.left + rect.width / 2,
-      rect.top + rect.height / 2
-    );
-    await addNoteAt(world.x, world.y);
+  // Toolbar button — activates note placement mode
+  function handleAdd() {
+    setPlacingTool(prev => prev === "note" ? null : "note");
   }
 
   // ── Add shape ─────────────────────────────────────────────────────
@@ -132,6 +138,15 @@ export default function Board() {
     clearTimeout(updateTimerRef.current[id]);
     updateTimerRef.current[id] = setTimeout(() => {
       updateShape(id, patch).catch(console.error);
+    }, 300);
+  }, []);
+
+  const handleNoteUpdate = useCallback((id, patch) => {
+    setNotes(prev => prev.map(n => n._id === id ? { ...n, ...patch } : n));
+
+    clearTimeout(updateTimerRef.current[id]);
+    updateTimerRef.current[id] = setTimeout(() => {
+      updateNote(id, patch).catch(console.error);
     }, 300);
   }, []);
 
@@ -200,8 +215,15 @@ export default function Board() {
   // ── Pan / right-click ─────────────────────────────────────────────
   function handleMouseDown(e) {
     if (e.button === 0) {
+      // Placement mode — drop a note at click position
+      if (placingTool === "note") {
+        const world = screenToWorld(e.clientX, e.clientY);
+        addNoteAt(world.x, world.y);
+        setPlacingTool(null);
+        return;
+      }
       if (menu.open) closeMenu();
-      setSelectedShapeId(null); // click on canvas deselects shape
+      setSelectedShapeId(null);
     }
     if (e.button !== 1 && e.button !== 2) return;
     e.preventDefault();
@@ -280,6 +302,8 @@ export default function Board() {
       <div className="board-topbar">
         <Link to="/" className="board-back-link">← Back</Link>
 
+        <div className="board-divider" />
+
         <div className="board-brand">
           <div className="board-logo">
             <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -296,8 +320,6 @@ export default function Board() {
         <span className="board-subtitle">{boardId}</span>
 
         <div className="board-toolbar">
-          <button className="add-note-btn" onClick={handleAdd}>+ Add Note</button>
-          <div className="board-toolbar-sep" />
           <button className="btn-zoom" onClick={zoomOut} title="Zoom out">−</button>
           <button className="btn-zoom" onClick={zoomIn} title="Zoom in">+</button>
           <button onClick={resetView}>Reset</button>
@@ -311,7 +333,7 @@ export default function Board() {
         onMouseDown={handleMouseDown}
         onContextMenu={(e) => e.preventDefault()}
         className="board-viewport"
-        style={{ cursor: panRef.current.active ? "grabbing" : "default" }}
+        style={{ cursor: placingTool === "note" ? "crosshair" : panRef.current.active ? "grabbing" : "default" }}
       >
         <div
           className="board-world"
@@ -323,17 +345,16 @@ export default function Board() {
             <Note
               key={n._id}
               note={n}
+              isEditing={editingNoteId === n._id}
+              onOpenMenu={openNoteMenu}
+              onUpdate={handleNoteUpdate}
               onPositionChange={onPositionChange}
               screenToWorld={screenToWorld}
-              onOpenMenu={openNoteMenu}
-              isEditing={editingNoteId === n._id}
               onStartEdit={() => setEditingNoteId(n._id)}
               onStopEdit={() => setEditingNoteId(null)}
               onSaveEdit={async (noteId, text) => {
                 const updated = await updateNote(noteId, { text });
-                setNotes((prev) =>
-                  prev.map((n) => (n._id === updated._id ? updated : n))
-                );
+                setNotes(prev => prev.map(n => n._id === updated._id ? updated : n));
                 setEditingNoteId(null);
               }}
             />
@@ -370,8 +391,19 @@ export default function Board() {
         onAddShape={({ shape }) => addShapeAt(menu.worldX - 60, menu.worldY - 60, { shape })}
         onEdit={openEditInline}
         onDelete={openDeleteModal}
+        onChangeColor={({ color }) => handleNoteUpdate(menu.noteId, { color })}
         onEditShape={openShapeEdit}
         onDeleteShape={handleDeleteShape}
+        onShapeColor={colorId => {
+          console.log("onShapeColor", colorId, "shapeId:", menu.shapeId, "shapes:", shapes.map(s=>s._id));
+          handleShapeUpdate(menu.shapeId, { color: colorId });
+        }}
+        onShapeFill={fillId => {
+          console.log("onShapeFill", fillId, "shapeId:", menu.shapeId);
+          handleShapeUpdate(menu.shapeId, { fillMode: fillId });
+        }}
+        currentShapeColor={shapes.find(s => s._id === menu.shapeId)?.color ?? "black"}
+        currentShapeFill={shapes.find(s => s._id === menu.shapeId)?.fillMode ?? "none"}
       />
 
       {/* Delete Modal */}
@@ -405,6 +437,18 @@ export default function Board() {
           </button>
         </div>
       </Modal>
+      {/* Floating left-center toolbar */}
+      <div className="board-left-toolbar">
+        <button
+          className={`left-toolbar-btn${placingTool === "note" ? " active" : ""}`}
+          onClick={handleAdd}
+          title="Add sticky note — click to place"
+        >
+          🗒️
+          <span className="left-toolbar-label">Note</span>
+        </button>
+      </div>
+
     </div>
   );
 }

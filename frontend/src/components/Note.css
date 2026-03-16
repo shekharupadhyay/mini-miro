@@ -12,6 +12,7 @@
   font-family: 'Segoe UI', system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.5;
+  box-sizing: border-box;
 }
 
 .note::before {
@@ -36,8 +37,7 @@
 
 .note-editor {
   width: 100%;
-  min-height: 100px;
-  resize: none;
+  min-height: 80px;
   border: none;
   outline: none;
   background: transparent;
@@ -45,4 +45,38 @@
   font: inherit;
   line-height: 1.5;
   padding-top: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: text;
+  box-sizing: border-box;
+}
+
+/* ── Resize handle ───────────────────────────────────────── */
+.note-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  cursor: se-resize;
+  /* Diagonal lines as a visual grip */
+  background-image:
+    linear-gradient(135deg,
+      transparent 30%,
+      rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.18) 40%,
+      transparent 40%,
+      transparent 55%,
+      rgba(0,0,0,0.18) 55%, rgba(0,0,0,0.18) 65%,
+      transparent 65%,
+      transparent 80%,
+      rgba(0,0,0,0.18) 80%, rgba(0,0,0,0.18) 90%,
+      transparent 90%
+    );
+  border-radius: 0 0 14px 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.note:hover .note-resize-handle {
+  opacity: 1;
 }

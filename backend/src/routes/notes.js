@@ -16,14 +16,18 @@ router.post("/boards/:boardId/notes", async (req, res) => {
 
   const note = await Note.create({
     boardId,
-    text: req.body.text ?? "",
-    x: req.body.x ?? 100,
-    y: req.body.y ?? 100,
+    text:  req.body.text  ?? "",
+    x:     req.body.x     ?? 100,
+    y:     req.body.y     ?? 100,
+    w:     req.body.w     ?? 180,
+    h:     req.body.h     ?? 110,
     color: req.body.color ?? "yellow",
   });
 
   res.status(201).json(note);
 });
+
+// PUT update note position
 router.put("/notes/:noteId", async (req, res) => {
   const { noteId } = req.params;
   const { x, y } = req.body;
@@ -35,34 +39,22 @@ router.put("/notes/:noteId", async (req, res) => {
   );
 
   if (!updated) return res.status(404).json({ error: "Note not found" });
-
   res.json(updated);
 });
-// UPDATE note position
-router.put("/notes/:id", async (req, res) => {
-  const { id } = req.params;
-  const { x, y } = req.body;
 
-  const note = await Note.findByIdAndUpdate(
-    id,
-    { x, y },
-    { new: true }
-  );
-
-  res.json(note);
-});
-
+// PATCH update note content, color, and/or size
 router.patch("/notes/:noteId", async (req, res) => {
   const { noteId } = req.params;
-  const { text, color } = req.body;
+  const { text, color, w, h } = req.body;
 
   const update = {};
-  if (text !== undefined) update.text = text;
+  if (text  !== undefined) update.text  = text;
   if (color !== undefined) update.color = color;
+  if (w     !== undefined) update.w     = w;
+  if (h     !== undefined) update.h     = h;
 
   const updated = await Note.findByIdAndUpdate(noteId, update, { new: true });
   if (!updated) return res.status(404).json({ error: "Note not found" });
-
   res.json(updated);
 });
 
@@ -72,7 +64,6 @@ router.delete("/notes/:noteId", async (req, res) => {
 
   const deleted = await Note.findByIdAndDelete(noteId);
   if (!deleted) return res.status(404).json({ error: "Note not found" });
-
   res.json({ ok: true });
 });
 

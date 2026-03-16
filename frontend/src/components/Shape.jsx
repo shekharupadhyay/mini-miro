@@ -56,13 +56,19 @@ export default function Shape({
   const svgW        = w;
   const svgH        = isLine ? 4 : h;
 
-  // Focus textarea whenever editing flips on
+  // Focus contenteditable when editing starts — set text and select all
   useEffect(() => {
     if (editing && textareaRef.current) {
-      textareaRef.current.focus();
-      textareaRef.current.select();
+      const el = textareaRef.current;
+      el.textContent = draft;
+      el.focus();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
     }
-  }, [editing]);
+  }, [editing]); // eslint-disable-line
 
   // Sync controlled isEditing prop → local editing state
   useEffect(() => {
@@ -195,12 +201,13 @@ export default function Shape({
 
       {editing && (
         <div className="shape-textarea-wrap">
-          <textarea
+          <div
             ref={textareaRef}
             className="shape-textarea"
             style={{ color: strokeColor }}
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
+            contentEditable
+            suppressContentEditableWarning
+            onInput={e => setDraft(e.currentTarget.textContent)}
             onBlur={commitEdit}
             onKeyDown={e => {
               e.stopPropagation();
@@ -226,43 +233,6 @@ export default function Shape({
           <div className="shape-handle line-w" onMouseDown={e => handleResizeMouseDown(e, "sw")} />
           <div className="shape-handle line-e" onMouseDown={e => handleResizeMouseDown(e, "se")} />
         </>
-      )}
-
-      {/* ── Style toolbar — appears above shape when selected ── */}
-      {isSelected && !editing && (
-        <div
-          className="shape-toolbar"
-          onMouseDown={e => e.stopPropagation()}
-        >
-          {/* Fill mode toggle */}
-          <div className="shape-toolbar-group">
-            {FILL_MODES.map(fm => (
-              <button
-                key={fm.id}
-                className={`shape-toolbar-btn${fillMode === fm.id ? " active" : ""}`}
-                title={fm.label}
-                onClick={e => { e.stopPropagation(); onUpdate(_id, { fillMode: fm.id }); }}
-              >
-                {fm.icon}
-              </button>
-            ))}
-          </div>
-
-          <div className="shape-toolbar-sep" />
-
-          {/* Colour swatches */}
-          <div className="shape-toolbar-colors">
-            {COLORS.map(c => (
-              <button
-                key={c.id}
-                className={`shape-color-btn${color === c.id ? " active" : ""}`}
-                title={c.id}
-                style={{ "--swatch": c.hex }}
-                onClick={e => { e.stopPropagation(); onUpdate(_id, { color: c.id }); }}
-              />
-            ))}
-          </div>
-        </div>
       )}
 
       {/* Double-click hint */}
