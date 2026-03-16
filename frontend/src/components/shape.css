@@ -91,6 +91,39 @@
   pointer-events: all;
 }
 
+/* ── Rotate handle ────────────────────────────────────────── */
+.shape-rotate-handle {
+  position: absolute;
+  top: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #4f7dff;
+  color: #4f7dff;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  z-index: 20;
+  box-shadow: 0 2px 8px rgba(79,125,255,0.25);
+  transition: background 0.12s, transform 0.1s;
+  user-select: none;
+}
+
+.shape-rotate-handle:hover {
+  background: #4f7dff;
+  color: #fff;
+  transform: translateX(-50%) scale(1.15);
+}
+
+.shape-rotate-handle:active {
+  cursor: grabbing;
+}
+
 /* ── Resize handles ───────────────────────────────────────── */
 .shape-handle {
   position: absolute;

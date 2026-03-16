@@ -43,7 +43,7 @@ export default function Shape({
   onStopEdit,      // () => void — called when textarea blurs/commits
 }) {
   const { _id, shape, x, y, w, h, text, color = "black", fillMode = "none",
-          textColor = null, fontFamily = "sans" } = shapeData;
+          textColor = null, fontFamily = "sans", rotation = 0 } = shapeData;
 
   const FONT_MAP = {
     sans:        "DM Sans, system-ui, sans-serif",
@@ -121,17 +121,90 @@ export default function Shape({
     e.preventDefault();
     const scale = getBoardScale(elRef.current);
     const startX = e.clientX, startY = e.clientY;
-    const origX = x, origY = y, origW = w, origH = h;
+    const origW = w, origH = h;
+
+    // Capture rotation at drag-start in radians
+    const theta = (rotation * Math.PI) / 180;
+    const cosT = Math.cos(theta);
+    const sinT = Math.sin(theta);
+
+    // Shape center in world coords (stays fixed for SE corner;
+    // for other corners the opposite corner is fixed instead)
+    const origCx = x + origW / 2;
+    const origCy = y + origH / 2;
+
+    // For each corner, identify which corner is the FIXED anchor
+    // (the corner diagonally opposite) in local space, then convert to world.
+    // Local coords: origin at shape top-left, x→right, y→down
+    const anchors = {
+      se: { lx: -origW / 2, ly: -origH / 2 }, // NW is fixed
+      sw: { lx:  origW / 2, ly: -origH / 2 }, // NE is fixed
+      ne: { lx: -origW / 2, ly:  origH / 2 }, // SW is fixed
+      nw: { lx:  origW / 2, ly:  origH / 2 }, // SE is fixed
+    };
+    const anchor = anchors[corner];
+    // Anchor in world coords
+    const anchorWx = origCx + anchor.lx * cosT - anchor.ly * sinT;
+    const anchorWy = origCy + anchor.lx * sinT + anchor.ly * cosT;
 
     function onMove(ev) {
-      const dx = (ev.clientX - startX) / scale;
-      const dy = (ev.clientY - startY) / scale;
-      let patch = {};
-      if (corner === "se") patch = { w: Math.max(40, origW + dx), h: Math.max(40, origH + dy) };
-      else if (corner === "sw") { const nw = Math.max(40, origW - dx); patch = { x: origX + origW - nw, w: nw, h: Math.max(40, origH + dy) }; }
-      else if (corner === "ne") { const nh = Math.max(40, origH - dy); patch = { y: origY + origH - nh, w: Math.max(40, origW + dx), h: nh }; }
-      else if (corner === "nw") { const nw = Math.max(40, origW - dx); const nh = Math.max(40, origH - dy); patch = { x: origX + origW - nw, y: origY + origH - nh, w: nw, h: nh }; }
-      onUpdate(_id, patch);
+      // Raw screen delta → world delta
+      const sdx = (ev.clientX - startX) / scale;
+      const sdy = (ev.clientY - startY) / scale;
+
+      // Project screen delta onto shape's local axes
+      const localDx =  sdx * cosT + sdy * sinT;
+      const localDy = -sdx * sinT + sdy * cosT;
+
+      // New size depending on which corner is dragged
+      let newW = origW, newH = origH;
+      let localSignX = 1, localSignY = 1;
+
+      if (corner === "se") { newW = origW + localDx; newH = origH + localDy; localSignX =  1; localSignY =  1; }
+      if (corner === "sw") { newW = origW - localDx; newH = origH + localDy; localSignX = -1; localSignY =  1; }
+      if (corner === "ne") { newW = origW + localDx; newH = origH - localDy; localSignX =  1; localSignY = -1; }
+      if (corner === "nw") { newW = origW - localDx; newH = origH - localDy; localSignX = -1; localSignY = -1; }
+
+      newW = Math.max(40, newW);
+      newH = Math.max(40, newH);
+
+      // New center: anchor stays fixed, center is at anchor + half-size in local axes
+      const newCx = anchorWx + (newW / 2) * localSignX * cosT - (newH / 2) * localSignY * sinT;
+      const newCy = anchorWy + (newW / 2) * localSignX * sinT + (newH / 2) * localSignY * cosT;
+
+      // Back to top-left world position
+      const newX = newCx - newW / 2;
+      const newY = newCy - newH / 2;
+
+      onUpdate(_id, { x: newX, y: newY, w: newW, h: newH });
+    }
+
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  // ── Rotate handle ─────────────────────────────────────────────────
+  function handleRotateMouseDown(e) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const el = elRef.current;
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width  / 2;
+    const cy = rect.top  + rect.height / 2;
+
+    // Angle from center to starting mouse position
+    const startAngle = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
+    const startRot   = rotation;
+
+    function onMove(ev) {
+      const angle = Math.atan2(ev.clientY - cy, ev.clientX - cx) * (180 / Math.PI);
+      const delta = angle - startAngle;
+      onUpdate(_id, { rotation: (startRot + delta + 360) % 360 });
     }
     function onUp() {
       window.removeEventListener("mousemove", onMove);
@@ -196,7 +269,11 @@ export default function Shape({
     <div
       ref={elRef}
       className={`shape-card${isSelected ? " selected" : ""}`}
-      style={{ left: x, top: y, width: svgW, height: containerH }}
+      style={{
+        left: x, top: y, width: svgW, height: containerH,
+        transform: `rotate(${rotation}deg)`,
+        transformOrigin: "center center",
+      }}
       onMouseDown={handleBodyMouseDown}
       onDoubleClick={handleDoubleClick}
       onContextMenu={e => {
@@ -257,6 +334,13 @@ export default function Shape({
           <div className="shape-handle line-w" onMouseDown={e => handleResizeMouseDown(e, "sw")} />
           <div className="shape-handle line-e" onMouseDown={e => handleResizeMouseDown(e, "se")} />
         </>
+      )}
+
+      {/* Rotate handle — circular arrow above shape center */}
+      {isSelected && !editing && (
+        <div className="shape-rotate-handle" onMouseDown={handleRotateMouseDown} title="Drag to rotate">
+          ↻
+        </div>
       )}
 
       {/* Double-click hint */}

@@ -32,7 +32,7 @@ router.post("/boards/:boardId/shapes", async (req, res) => {
 // PATCH update shape (position, size, text, color, fillMode, textColor, fontFamily)
 router.patch("/shapes/:shapeId", async (req, res) => {
   const { shapeId } = req.params;
-  const { x, y, w, h, text, color, fillMode, textColor, fontFamily } = req.body;
+  const { x, y, w, h, text, color, fillMode, textColor, fontFamily, rotation } = req.body;
 
   const update = {};
   if (x          !== undefined) update.x          = x;
@@ -44,6 +44,7 @@ router.patch("/shapes/:shapeId", async (req, res) => {
   if (fillMode   !== undefined) update.fillMode   = fillMode;
   if (textColor  !== undefined) update.textColor  = textColor;
   if (fontFamily !== undefined) update.fontFamily = fontFamily;
+  if (rotation   !== undefined) update.rotation   = rotation;
 
   const updated = await Shape.findByIdAndUpdate(shapeId, update, { new: true });
   if (!updated) return res.status(404).json({ error: "Shape not found" });

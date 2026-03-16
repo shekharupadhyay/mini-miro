@@ -13,6 +13,7 @@ const shapeSchema = new mongoose.Schema(
     fillMode:   { type: String, default: "none" },
     textColor:  { type: String, default: null },
     fontFamily: { type: String, default: "sans" },
+    rotation:   { type: Number, default: 0 },
   },
   { timestamps: true }
 );
