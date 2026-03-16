@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchNotes, createNote, updateNote, deleteNote } from "../api/notesApi";
-import { fetchShapes, createShape, updateShape } from "../api/shapesApi";
+import { fetchShapes, createShape, updateShape, deleteShape } from "../api/shapesApi";
 import Modal from "../components/Modal";
 import ContextMenu from "../components/ContextMenu";
 import Note from "../components/Note";
@@ -19,15 +19,16 @@ export default function Board() {
   const [notes, setNotes] = useState([]);
   const [shapes, setShapes] = useState([]);
   const [selectedShapeId, setSelectedShapeId] = useState(null);
+  const [editingShapeId,  setEditingShapeId]  = useState(null);
 
   // Single menu state — mode tells ContextMenu which section to render
   const [menu, setMenu] = useState({
     open: false,
     x: 0,
     y: 0,
-    mode: "canvas",   // "canvas" | "note"
+    mode: "canvas",   // "canvas" | "note" | "shape"
     noteId: null,
-    // world coords stored so canvas-add knows where to place the note
+    shapeId: null,
     worldX: 0,
     worldY: 0,
   });
@@ -141,7 +142,26 @@ export default function Board() {
 
   // Called by Note component when the user right-clicks a note
   function openNoteMenu({ noteId, x, y }) {
-    setMenu({ open: true, x, y, mode: "note", noteId, worldX: 0, worldY: 0 });
+    setMenu({ open: true, x, y, mode: "note", noteId, shapeId: null, worldX: 0, worldY: 0 });
+  }
+
+  // Called by Shape component on right-click
+  function openShapeMenu({ shapeId, x, y }) {
+    setMenu({ open: true, x, y, mode: "shape", noteId: null, shapeId, worldX: 0, worldY: 0 });
+  }
+
+  function openShapeEdit() {
+    setEditingShapeId(menu.shapeId);
+    closeMenu();
+  }
+
+  async function handleDeleteShape() {
+    const id = menu.shapeId;
+    if (!id) return;
+    await deleteShape(id);
+    setShapes(prev => prev.filter(s => s._id !== id));
+    setSelectedShapeId(null);
+    closeMenu();
   }
 
   function openEditInline() {
@@ -324,9 +344,12 @@ export default function Board() {
               key={s._id}
               shape={s}
               isSelected={selectedShapeId === s._id}
+              isEditing={editingShapeId === s._id}
               onSelect={id => setSelectedShapeId(id)}
               onDeselect={() => setSelectedShapeId(null)}
               onUpdate={handleShapeUpdate}
+              onOpenMenu={openShapeMenu}
+              onStopEdit={() => setEditingShapeId(null)}
             />
           ))}
         </div>
@@ -347,6 +370,8 @@ export default function Board() {
         onAddShape={({ shape }) => addShapeAt(menu.worldX - 60, menu.worldY - 60, { shape })}
         onEdit={openEditInline}
         onDelete={openDeleteModal}
+        onEditShape={openShapeEdit}
+        onDeleteShape={handleDeleteShape}
       />
 
       {/* Delete Modal */}

@@ -31,9 +31,18 @@
 }
 
 /* ── Textarea (edit) ──────────────────────────────────────── */
-.shape-textarea {
+.shape-textarea-wrap {
   position: absolute;
-  inset: 12px;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  pointer-events: none;
+}
+
+.shape-textarea {
+  width: 100%;
   background: transparent;
   border: none;
   outline: none;
@@ -46,6 +55,10 @@
   padding: 0;
   line-height: 1.4;
   overflow: hidden;
+  pointer-events: all;
+  /* grow to fit content, shrink to a single line when empty */
+  field-sizing: content;
+  min-height: 1lh;
 }
 
 /* ── Resize handles ───────────────────────────────────────── */

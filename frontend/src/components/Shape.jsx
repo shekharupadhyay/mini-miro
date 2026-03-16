@@ -36,8 +36,11 @@ function getFill(hex, fillMode) {
 export default function Shape({
   shape: shapeData,
   isSelected,
+  isEditing,       // controlled from Board — true when context menu "Edit text" chosen
   onSelect,
   onUpdate,
+  onOpenMenu,
+  onStopEdit,      // () => void — called when textarea blurs/commits
 }) {
   const { _id, shape, x, y, w, h, text, color = "black", fillMode = "none" } = shapeData;
 
@@ -53,12 +56,21 @@ export default function Shape({
   const svgW        = w;
   const svgH        = isLine ? 4 : h;
 
+  // Focus textarea whenever editing flips on
   useEffect(() => {
     if (editing && textareaRef.current) {
       textareaRef.current.focus();
       textareaRef.current.select();
     }
   }, [editing]);
+
+  // Sync controlled isEditing prop → local editing state
+  useEffect(() => {
+    if (isEditing && !editing) {
+      setDraft(text ?? "");
+      setEditing(true);
+    }
+  }, [isEditing]); // eslint-disable-line
 
   // ── Drag to move ──────────────────────────────────────────────────
   function handleBodyMouseDown(e) {
@@ -124,6 +136,7 @@ export default function Shape({
   function commitEdit() {
     setEditing(false);
     onUpdate(_id, { text: draft });
+    onStopEdit?.();
   }
 
   // ── SVG ───────────────────────────────────────────────────────────
@@ -167,7 +180,12 @@ export default function Shape({
       style={{ left: x, top: y, width: svgW, height: svgH }}
       onMouseDown={handleBodyMouseDown}
       onDoubleClick={handleDoubleClick}
-      onContextMenu={e => e.preventDefault()}
+      onContextMenu={e => {
+        e.preventDefault();
+        e.stopPropagation();
+        onSelect(_id);
+        onOpenMenu?.({ shapeId: _id, x: e.clientX, y: e.clientY });
+      }}
     >
       {renderSVG()}
 
@@ -176,20 +194,22 @@ export default function Shape({
       )}
 
       {editing && (
-        <textarea
-          ref={textareaRef}
-          className="shape-textarea"
-          style={{ color: strokeColor }}
-          value={draft}
-          onChange={e => setDraft(e.target.value)}
-          onBlur={commitEdit}
-          onKeyDown={e => {
-            e.stopPropagation();
-            if (e.key === "Escape") { setEditing(false); setDraft(text ?? ""); }
-            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitEdit(); }
-          }}
-          onMouseDown={e => e.stopPropagation()}
-        />
+        <div className="shape-textarea-wrap">
+          <textarea
+            ref={textareaRef}
+            className="shape-textarea"
+            style={{ color: strokeColor }}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commitEdit}
+            onKeyDown={e => {
+              e.stopPropagation();
+              if (e.key === "Escape") { setEditing(false); setDraft(text ?? ""); onStopEdit?.(); }
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitEdit(); }
+            }}
+            onMouseDown={e => e.stopPropagation()}
+          />
+        </div>
       )}
 
       {/* Corner resize handles */}

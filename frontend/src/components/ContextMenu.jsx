@@ -22,9 +22,11 @@ const SHAPES = [
 export default function ContextMenu({
   open, x, y, onClose,
   onEdit, onDelete,
-  onAddNote,   // ({ color }) => void
-  onAddShape,  // ({ shape }) => void  — drops immediately, user resizes on canvas
-  mode = "note",
+  onAddNote,
+  onAddShape,
+  onEditShape,    // () => void
+  onDeleteShape,  // () => void
+  mode = "note",  // "canvas" | "note" | "shape"
 }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ x, y });
@@ -52,7 +54,7 @@ export default function ContextMenu({
       if (expanded === "note")  menuHeight = 144;
       if (expanded === "shape") menuHeight = 160;
     } else {
-      menuHeight = 120;
+      menuHeight = 120; // covers both "note" and "shape" modes
     }
     const padding = 12;
     let nextX = x, nextY = y;
@@ -128,6 +130,18 @@ export default function ContextMenu({
               </div>
             </div>
           )}
+        </>
+      ) : mode === "shape" ? (
+        <>
+          <div className="context-menu-label">Shape actions</div>
+          <button className="context-menu-btn" onClick={() => { onEditShape?.(); onClose(); }}>
+            <span>✏️ Edit text</span>
+            <span className="context-menu-hint">Enter</span>
+          </button>
+          <button className="context-menu-btn danger" onClick={() => { onDeleteShape?.(); onClose(); }}>
+            <span>🗑 Delete shape</span>
+            <span className="context-menu-hint">Del</span>
+          </button>
         </>
       ) : (
         <>
