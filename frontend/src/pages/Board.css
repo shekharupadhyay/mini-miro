@@ -36,6 +36,13 @@
   -webkit-font-smoothing: antialiased;
 }
 
+.board-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
 /* ─── Top Bar ───────────────────────────────────────────────────── */
 .board-topbar {
   height: 52px;
@@ -257,6 +264,21 @@
   height: 20px;
   background: var(--border);
   margin: 0 4px;
+}
+
+.btn-export {
+  background: linear-gradient(135deg, #4f7dff, #6366f1) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(79, 125, 255, 0.25);
+}
+
+.btn-export:hover {
+  background: linear-gradient(135deg, #3a6bef, #5558e6) !important;
+  box-shadow: 0 4px 14px rgba(79, 125, 255, 0.35) !important;
+  color: #fff !important;
+  transform: translateY(-1px);
 }
 
 /* ─── Floating Left Toolbar ─────────────────────────────────────── */

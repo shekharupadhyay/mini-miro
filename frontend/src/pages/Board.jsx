@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 import { io as socketIO } from "socket.io-client";
+import html2canvas from "html2canvas";
 import { fetchNotes, createNote, updateNote, deleteNote } from "../api/notesApi";
 import { fetchShapes, createShape, updateShape, deleteShape } from "../api/shapesApi";
 import Modal from "../components/Modal";
 import ContextMenu from "../components/ContextMenu";
+import ChatPanel from "../components/ChatPanel";
 import Note from "../components/Note";
 import Shape from "../components/Shape";
 import "./board.css";
@@ -38,50 +40,53 @@ export default function Board() {
   const [editingShapeId,  setEditingShapeId]  = useState(null);
   const [placingTool,     setPlacingTool]     = useState(null);
   const [members,         setMembers]         = useState([]);
+  const [chatOpen,        setChatOpen]        = useState(false);
+  const [socket,          setSocket]          = useState(null);
 
   // ── Socket ref ────────────────────────────────────────────────────
   const socketRef = useRef(null);
 
   useEffect(() => {
-    const socket = socketIO(import.meta.env.VITE_API_URL, {
+    const s = socketIO(import.meta.env.VITE_API_URL, {
   withCredentials: true,
-  transports: ["websocket"],  // skip polling, go straight to WS
+  transports: ["websocket"],
 });
-    socketRef.current = socket;
+    socketRef.current = s;
+    setSocket(s);
 
-    socket.on("connect", () => {
+    s.on("connect", () => {
       // Join after connection is confirmed
-      socket.emit("join-board", { boardId, username });
+      s.emit("join-board", { boardId, username });
     });
 
     // ── Presence ──────────────────────────────────────────────────
-    socket.on("presence", (list) => {
+    s.on("presence", (list) => {
       setMembers(list);
     });
 
     // ── Incoming events from OTHER clients ────────────────────────
-    socket.on("note:created", (note) => {
+    s.on("note:created", (note) => {
       setNotes(prev => prev.find(n => n._id === note._id) ? prev : [...prev, note]);
     });
-    socket.on("note:updated", ({ _id, ...patch }) => {
+    s.on("note:updated", ({ _id, ...patch }) => {
       setNotes(prev => prev.map(n => n._id === _id ? { ...n, ...patch } : n));
     });
-    socket.on("note:deleted", ({ _id }) => {
+    s.on("note:deleted", ({ _id }) => {
       setNotes(prev => prev.filter(n => n._id !== _id));
     });
 
-    socket.on("shape:created", (shape) => {
+    s.on("shape:created", (shape) => {
       setShapes(prev => prev.find(s => s._id === shape._id) ? prev : [...prev, shape]);
     });
-    socket.on("shape:updated", ({ _id, ...patch }) => {
+    s.on("shape:updated", ({ _id, ...patch }) => {
       setShapes(prev => prev.map(s => s._id === _id ? { ...s, ...patch } : s));
     });
-    socket.on("shape:deleted", ({ _id }) => {
+    s.on("shape:deleted", ({ _id }) => {
       setShapes(prev => prev.filter(s => s._id !== _id));
       setSelectedShapeId(id => id === _id ? null : id);
     });
 
-    return () => socket.disconnect();
+    return () => { s.disconnect(); setSocket(null); };
   }, [boardId, username]);
 
   // ── Menu state ────────────────────────────────────────────────────
@@ -306,6 +311,82 @@ export default function Board() {
   }
   function resetView() { setCamera({ x: 80, y: 80, scale: 1 }); }
 
+  // ── Export as PNG ─────────────────────────────────────────────────
+  async function exportAsPng() {
+    const items = [...notes, ...shapes];
+    if (items.length === 0) {
+      alert("Nothing on the board to export!");
+      return;
+    }
+
+    // Compute bounding box of all content
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    items.forEach(it => {
+      const x = it.x ?? 0, y = it.y ?? 0;
+      const w = it.w ?? 160, h = it.h ?? 120;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x + w > maxX) maxX = x + w;
+      if (y + h > maxY) maxY = y + h;
+    });
+
+    const pad = 60;
+    minX -= pad; minY -= pad;
+    maxX += pad; maxY += pad;
+    const contentW = maxX - minX;
+    const contentH = maxY - minY;
+
+    // Clone the world layer into an offscreen container with proper sizing
+    const worldEl = document.querySelector(".board-world");
+    if (!worldEl) return;
+
+    const container = document.createElement("div");
+    container.style.cssText = `
+      position: fixed; left: -99999px; top: 0;
+      width: ${contentW}px; height: ${contentH}px;
+      overflow: visible; background: #ffffff;
+    `;
+    const clone = worldEl.cloneNode(true);
+    clone.style.cssText = `
+      position: absolute; left: 0; top: 0;
+      transform: translate(${-minX}px, ${-minY}px) scale(1);
+      transform-origin: 0 0;
+      width: 1px; height: 1px;
+    `;
+    container.appendChild(clone);
+    document.body.appendChild(container);
+
+    try {
+      console.log("[Export] Starting html2canvas capture…");
+      const canvas = await html2canvas(container, {
+        width: contentW,
+        height: contentH,
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      console.log("[Export] Canvas generated:", canvas.width, "x", canvas.height);
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `miniMiro-${boardId}.png`;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      console.log("[Export] Download triggered.");
+    } catch (err) {
+      console.error("[Export] Failed:", err);
+      alert("Export failed — see console for details.");
+    } finally {
+      document.body.removeChild(container);
+    }
+  }
+
+
+
   // ── Render ────────────────────────────────────────────────────────
   return (
     <div className="board-page">
@@ -357,9 +438,14 @@ export default function Board() {
           <button className="btn-zoom" onClick={zoomOut} title="Zoom out">−</button>
           <button className="btn-zoom" onClick={zoomIn} title="Zoom in">+</button>
           <button onClick={resetView}>Reset</button>
+          <div className="board-toolbar-sep" />
+          <button className="btn-export" onClick={exportAsPng} title="Export board as PNG">
+            📥 Export PNG
+          </button>
         </div>
       </div>
 
+      <div className="board-body">
       <div
         ref={viewportRef}
         onWheel={handleWheel}
@@ -481,6 +567,14 @@ export default function Board() {
         </div>
       </Modal>
 
+      <ChatPanel
+        socket={socket}
+        username={username}
+        isOpen={chatOpen}
+        onToggle={() => setChatOpen(o => !o)}
+      />
+      </div>{/* end .board-body */}
+
       <div className="board-left-toolbar">
         <button
           className={`left-toolbar-btn${placingTool === "note" ? " active" : ""}`}
@@ -521,6 +615,17 @@ export default function Board() {
             ))}
           </div>
         )}
+
+        <div className="left-toolbar-divider" />
+
+        <button
+          className={`left-toolbar-btn${chatOpen ? " active" : ""}`}
+          onClick={() => setChatOpen(o => !o)}
+          title="Chat"
+        >
+          💬
+          <span className="left-toolbar-label">Chat</span>
+        </button>
       </div>
     </div>
   );
