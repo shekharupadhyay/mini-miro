@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import { fetchNotes, createNote, updateNote, deleteNote } from "../api/notesApi";
 import { fetchShapes, createShape, updateShape, deleteShape } from "../api/shapesApi";
 import Modal from "../components/Modal";
@@ -14,6 +14,8 @@ function clamp(n, min, max) {
 
 export default function Board() {
   const { boardId } = useParams();
+  const location = useLocation();
+  const { username = "Guest", isAdmin = false } = location.state || {};
   const viewportRef = useRef(null);
 
   const [notes, setNotes] = useState([]);
@@ -325,6 +327,11 @@ export default function Board() {
 
         <div className="board-divider" />
         <span className="board-subtitle">{boardId}</span>
+
+        <div className="board-user-pill">
+          {isAdmin && <span className="board-admin-badge" title="Room Admin">👑</span>}
+          <span className="board-username">{username}</span>
+        </div>
 
         <div className="board-toolbar">
           <button className="btn-zoom" onClick={zoomOut} title="Zoom out">−</button>
