@@ -70,7 +70,6 @@
   background: var(--surface-2);
 }
 
-/* Vertical divider after back link */
 .board-topbar::after {
   content: '';
   width: 1px;
@@ -123,6 +122,66 @@
   color: var(--text-muted);
   font-family: var(--font-mono);
   letter-spacing: 0.02em;
+}
+
+/* ─── Presence Avatars ───────────────────────────────────────────── */
+.board-presence {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.board-avatar {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+  /* Negative margin so avatars overlap slightly */
+  margin-left: -6px;
+  transition: transform 0.15s;
+  cursor: default;
+}
+
+.board-avatar:first-child {
+  margin-left: 0;
+}
+
+.board-avatar:hover {
+  transform: scale(1.15) translateY(-1px);
+  z-index: 99 !important;
+}
+
+/* Green dot for "you" */
+.board-avatar-you {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 1.5px solid #fff;
+}
+
+.board-presence-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  margin-left: 6px;
+  white-space: nowrap;
 }
 
 /* ─── User Pill ──────────────────────────────────────────────────── */
@@ -185,7 +244,6 @@
   color: var(--text-primary);
 }
 
-/* Zoom buttons – icon-only */
 .board-toolbar button.btn-zoom {
   width: 32px;
   padding: 0;
@@ -242,9 +300,7 @@
   transform: scale(1.06);
 }
 
-.left-toolbar-btn:active {
-  transform: scale(0.96);
-}
+.left-toolbar-btn:active { transform: scale(0.96); }
 
 .left-toolbar-btn.active {
   background: rgba(79, 125, 255, 0.1);
@@ -252,9 +308,7 @@
   box-shadow: 0 0 0 3px rgba(79, 125, 255, 0.12);
 }
 
-.left-toolbar-btn.active .left-toolbar-label {
-  color: #4f7dff;
-}
+.left-toolbar-btn.active .left-toolbar-label { color: #4f7dff; }
 
 .left-toolbar-divider {
   width: 32px;
@@ -263,7 +317,6 @@
   margin: 2px 0;
 }
 
-/* Shape type sub-panel — appears below shape button */
 .left-toolbar-shape-picker {
   display: flex;
   flex-direction: column;
@@ -313,7 +366,6 @@
   line-height: 1;
 }
 
-/* Override the blue accent from add-note-btn when used in left toolbar */
 .board-left-toolbar .add-note-btn {
   background: transparent !important;
   border-color: transparent !important;
@@ -350,13 +402,11 @@
   position: relative;
   overflow: hidden;
   background-color: var(--bg);
-  background-image:
-    radial-gradient(circle, rgba(0,0,0,0.12) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(0,0,0,0.12) 1px, transparent 1px);
   background-size: 28px 28px;
   background-position: 14px 14px;
 }
 
-/* subtle edge shadow on light bg */
 .board-viewport::after {
   content: '';
   pointer-events: none;
@@ -376,7 +426,7 @@
   height: 1px;
 }
 
-/* ─── Status Bar (hint) ─────────────────────────────────────────── */
+/* ─── Status Bar ────────────────────────────────────────────────── */
 .board-hint {
   position: absolute;
   left: 14px;
@@ -408,20 +458,14 @@
   box-sizing: border-box;
   word-break: break-word;
   border-radius: 2px;
-
-  /* Folded corner — bottom-right */
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%);
-
-  /* Realistic layered sticky shadow */
   box-shadow:
     1px 1px 0 rgba(0,0,0,0.06),
     3px 3px 6px rgba(0,0,0,0.10),
     6px 10px 24px rgba(0,0,0,0.12);
-
   transition: box-shadow 0.15s;
 }
 
-/* Glue strip at the top */
 .note-card::before {
   content: '';
   position: absolute;
@@ -431,7 +475,6 @@
   opacity: 0.5;
 }
 
-/* Folded corner shadow triangle */
 .note-card::after {
   content: '';
   position: absolute;
@@ -458,7 +501,6 @@
     0 0 0 2px rgba(79,125,255,0.55);
 }
 
-/* ── Note text layers ─────────────────────────────────────────────── */
 .note-text {
   pointer-events: none;
   white-space: pre-wrap;
@@ -470,7 +512,6 @@
   font-style: italic;
 }
 
-/* ── Textarea inside note ─────────────────────────────────────────── */
 .note-textarea {
   width: 100%;
   height: 100%;
@@ -488,7 +529,6 @@
   display: block;
 }
 
-/* ── Resize handles ───────────────────────────────────────────────── */
 .note-handle {
   position: absolute;
   width: 10px;
@@ -505,7 +545,6 @@
 .note-handle.sw { bottom: -5px; left: -5px;   cursor: sw-resize; }
 .note-handle.se { bottom: -5px; right: -5px;  cursor: se-resize; }
 
-/* ── Rotate handle ────────────────────────────────────────────────── */
 .note-rotate-handle {
   position: absolute;
   top: -38px;
@@ -530,7 +569,6 @@
 .note-rotate-handle:hover { background: #4f7dff; color: #fff; }
 .note-rotate-handle:active { cursor: grabbing; }
 
-/* Stem connecting rotate handle to note */
 .note-rotate-stem {
   position: absolute;
   top: -14px;
@@ -544,7 +582,6 @@
   pointer-events: none;
 }
 
-/* ── Hint ─────────────────────────────────────────────────────────── */
 .note-hint {
   position: absolute;
   top: calc(100% + 10px);
@@ -567,28 +604,20 @@
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
-/* ── Colour variants ──────────────────────────────────────────────── */
 .note-card.yellow  { background: #fff9c4; color: #5c3d0a; }
 .note-card.yellow::before  { background: #f0c000; }
-
 .note-card.orange  { background: #ffe0b2; color: #6b3200; }
 .note-card.orange::before  { background: #fb8c00; }
-
 .note-card.red     { background: #ffcdd2; color: #7f1b1b; }
 .note-card.red::before     { background: #e53935; }
-
 .note-card.blue    { background: #bbdefb; color: #0d2d6b; }
 .note-card.blue::before    { background: #1e88e5; }
-
 .note-card.green   { background: #c8e6c9; color: #1b5e20; }
 .note-card.green::before   { background: #43a047; }
-
 .note-card.pink    { background: #f8bbd0; color: #7b1047; }
 .note-card.pink::before    { background: #e91e8c; }
-
 .note-card.purple  { background: #e1bee7; color: #4a148c; }
 .note-card.purple::before  { background: #8e24aa; }
-
 .note-card.gray    { background: #eceff1; color: #263238; }
 .note-card.gray::before    { background: #78909c; }
 
