@@ -25,6 +25,8 @@ export default function Join() {
     if (!username.trim()) {
       return "Please enter your name first";
     }
+    else  
+      if (!joinBoardName.trim()) { setJoinError("Enter a board name"); return; }
     return null;
   }
 
@@ -35,7 +37,7 @@ export default function Join() {
 
     const nameErr = validateName();
     if (nameErr) { setJoinError(nameErr); return; }
-    if (!joinBoardName.trim()) { setJoinError("Enter a board name"); return; }
+   
 
     setJoinLoading(true);
     try {
