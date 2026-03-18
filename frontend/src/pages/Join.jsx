@@ -21,12 +21,9 @@ export default function Join() {
   const [randomLoading, setRandomLoading] = useState(false);
 
   /* ── helpers ────────────────────────────────────────── */
-  function validateName() {
-    if (!username.trim()) {
-      return "Please enter your name first";
-    }
-    else  
-      if (!joinBoardName.trim()) { setJoinError("Enter a board name"); return; }
+  function validateName(name,check) {
+    if (!name.trim()) return `Please enter your ${check} first`;
+    
     return null;
   }
 
@@ -35,7 +32,7 @@ export default function Join() {
     e.preventDefault();
     setJoinError("");
 
-    const nameErr = validateName();
+    const nameErr = validateName(username, "first name") || validateName(joinBoardName, "board name");
     if (nameErr) { setJoinError(nameErr); return; }
    
 
@@ -63,9 +60,8 @@ export default function Join() {
     e.preventDefault();
     setCreateError("");
 
-    const nameErr = validateName();
+    const nameErr =  validateName(username, "first name") || validateName(createBoardName, "board name");
     if (nameErr) { setCreateError(nameErr); return; }
-    if (!createBoardName.trim()) { setCreateError("Enter a board name"); return; }
 
     setCreateLoading(true);
     try {
@@ -88,7 +84,7 @@ export default function Join() {
   async function handleCreateRandom() {
     setCreateError("");
 
-    const nameErr = validateName();
+    const nameErr = validateName(username, " first name");
     if (nameErr) { setCreateError(nameErr); return; }
 
     setRandomLoading(true);
