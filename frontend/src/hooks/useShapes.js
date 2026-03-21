@@ -39,7 +39,19 @@ export function useShapes(boardId, socketRef) {
       color: "black",
       fillMode: "none",
     });
-    setShapes((prev) => [...prev, saved]);
+    setShapes((prev) => prev.some((s) => s._id === saved._id) ? prev : [...prev, saved]);
+    socketRef.current?.emit("shape:created", saved);
+    return saved._id;
+  }
+
+  async function addFlexLine(p1, p2) {
+    const saved = await createShape(boardId, {
+      shape: "line",
+      x: 0, y: 0, w: 100, h: 4,
+      points: [p1, p2],
+      text: "", color: "black", fillMode: "none",
+    });
+    setShapes((prev) => prev.some((s) => s._id === saved._id) ? prev : [...prev, saved]);
     socketRef.current?.emit("shape:created", saved);
     return saved._id;
   }
@@ -54,6 +66,7 @@ export function useShapes(boardId, socketRef) {
     shapes,
     setShapes,
     addShapeAt,
+    addFlexLine,
     handleShapeUpdate,
     handleDeleteShape,
   };

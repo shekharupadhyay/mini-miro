@@ -151,8 +151,10 @@ export default function Dashboard() {
   const [loading,   setLoading]   = useState(true);
   const [search,    setSearch]    = useState("");
   const [activeNav, setActiveNav] = useState("recent");
-  const [panel,     setPanel]     = useState(null); // 'create' | 'join'
   const [userMenu,  setUserMenu]  = useState(false);
+  const [starred,   setStarred]   = useState(
+    () => new Set(JSON.parse(localStorage.getItem("mm_starred") || "[]"))
+  );
   const userMenuRef = useRef(null);
 
   // Create state
@@ -239,6 +241,11 @@ export default function Dashboard() {
       const roomRes = await fetch(`${API}/api/rooms/${encodeURIComponent(joinName.trim())}`);
       const room = await roomRes.json();
       const isAdmin = room.adminName === user.name;
+      // Record membership so the board appears under "Shared with me"
+      await fetch(`${API}/api/rooms/${encodeURIComponent(joinName.trim())}/join`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
       navigate(`/board/${joinName.trim()}`, { state: { username: user.name, isAdmin } });
     } catch { setJoinError("Something went wrong"); }
     finally   { setJoining(false); }
@@ -246,14 +253,22 @@ export default function Dashboard() {
 
   function handleLogout() { clearToken(); navigate("/login", { replace: true }); }
 
-  function openPanel(id) {
-    setPanel(p => p === id ? null : id);
-    setCreateError(""); setCreateName("");
-    setJoinError("");   setJoinName("");
+  function toggleStar(e, boardName) {
+    e.stopPropagation();
+    setStarred(prev => {
+      const next = new Set(prev);
+      if (next.has(boardName)) next.delete(boardName);
+      else next.add(boardName);
+      localStorage.setItem("mm_starred", JSON.stringify([...next]));
+      return next;
+    });
   }
 
   const firstName = user?.name?.split(" ")[0] ?? "there";
-  const filtered  = boards.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered  = boards
+    .filter(b => b.name.toLowerCase().includes(search.toLowerCase()))
+    .filter(b => activeNav !== "starred" || starred.has(b.name))
+    .filter(b => activeNav !== "shared"  || b.adminName !== user.name);
 
   /* ── Loading ────────────────────────────────────────────────────── */
   if (loading) return (
@@ -349,8 +364,8 @@ export default function Dashboard() {
             <div className="db-action-row">
 
               {/* New Board */}
-              <div className={`db-action-card${panel === "create" ? " open" : ""}`}>
-                <button className="db-action-card-btn" onClick={() => openPanel("create")}>
+              <div className="db-action-card open">
+                <div className="db-action-card-btn">
                   <div className="db-action-icon">
                     <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                       <path d="M10 4v12M4 10h12"/>
@@ -360,35 +375,32 @@ export default function Dashboard() {
                     <div className="db-action-label">New Board</div>
                     <div className="db-action-sub">Start from scratch</div>
                   </div>
-                </button>
+                </div>
 
-                {panel === "create" && (
-                  <div className="db-action-form">
-                    <form onSubmit={handleCreate}>
-                      <input
-                        className="db-form-input"
-                        value={createName}
-                        onChange={e => { setCreateName(e.target.value); setCreateError(""); }}
-                        placeholder="Board name"
-                        autoFocus
-                      />
-                      {createError && <div className="db-form-error">{createError}</div>}
-                      <div className="db-form-row">
-                        <button className="db-form-btn primary" type="submit" disabled={creating}>
-                          {creating ? "Creating…" : "Create"}
-                        </button>
-                        <button className="db-form-btn ghost" type="button" onClick={handleCreateRandom} disabled={creating}>
-                          🎲 Random
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                )}
+                <div className="db-action-form">
+                  <form onSubmit={handleCreate}>
+                    <input
+                      className="db-form-input"
+                      value={createName}
+                      onChange={e => { setCreateName(e.target.value); setCreateError(""); }}
+                      placeholder="Board name"
+                    />
+                    {createError && <div className="db-form-error">{createError}</div>}
+                    <div className="db-form-row">
+                      <button className="db-form-btn primary" type="submit" disabled={creating}>
+                        {creating ? "Creating…" : "Create"}
+                      </button>
+                      <button className="db-form-btn ghost" type="button" onClick={handleCreateRandom} disabled={creating}>
+                        🎲 Random
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
 
               {/* Join */}
-              <div className={`db-action-card db-action-card-join${panel === "join" ? " open" : ""}`}>
-                <button className="db-action-card-btn" onClick={() => openPanel("join")}>
+              <div className="db-action-card db-action-card-join open">
+                <div className="db-action-card-btn">
                   <div className="db-action-icon">
                     <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                       <path d="M4 10h12M11 5l5 5-5 5"/>
@@ -398,25 +410,24 @@ export default function Dashboard() {
                     <div className="db-action-label">Join</div>
                     <div className="db-action-sub">Enter a board name</div>
                   </div>
-                </button>
+                </div>
 
-                {panel === "join" && (
-                  <div className="db-action-form">
-                    <form onSubmit={handleJoin}>
-                      <input
-                        className="db-form-input"
-                        value={joinName}
-                        onChange={e => { setJoinName(e.target.value); setJoinError(""); }}
-                        placeholder="Board name"
-                        autoFocus
-                      />
-                      {joinError && <div className="db-form-error">{joinError}</div>}
+                <div className="db-action-form">
+                  <form onSubmit={handleJoin}>
+                    <input
+                      className="db-form-input"
+                      value={joinName}
+                      onChange={e => { setJoinName(e.target.value); setJoinError(""); }}
+                      placeholder="Board name"
+                    />
+                    {joinError && <div className="db-form-error">{joinError}</div>}
+                    <div className="db-form-row">
                       <button className="db-form-btn primary" type="submit" disabled={joining}>
                         {joining ? "Checking…" : "Join Board"}
                       </button>
-                    </form>
-                  </div>
-                )}
+                    </div>
+                  </form>
+                </div>
               </div>
 
             </div>
@@ -424,19 +435,25 @@ export default function Dashboard() {
 
           {/* ── My Boards ── */}
           <section className="db-section">
-            <h2 className="db-section-title">My Boards</h2>
+            <h2 className="db-section-title">
+              {activeNav === "starred" ? "Starred Boards" : activeNav === "shared" ? "Shared with Me" : "My Boards"}
+            </h2>
 
             {filtered.length === 0 ? (
               <div className="db-empty">
                 {boards.length === 0
                   ? <><div className="db-empty-icon">🗂️</div><p>No boards yet — create your first one above!</p></>
-                  : <><div className="db-empty-icon">🔍</div><p>No boards match "{search}"</p></>
+                  : activeNav === "starred"
+                    ? <><div className="db-empty-icon">⭐</div><p>No starred boards yet — click the star on any board to save it here.</p></>
+                    : activeNav === "shared"
+                      ? <><div className="db-empty-icon">👥</div><p>No shared boards yet — join a board created by someone else to see it here.</p></>
+                      : <><div className="db-empty-icon">🔍</div><p>No boards match "{search}"</p></>
                 }
               </div>
             ) : (
               <div className="db-boards-grid">
                 {filtered.map((board) => (
-                  <button
+                  <div
                     key={board._id}
                     className="db-board-card"
                     onClick={() => navigate(`/board/${board.name}`, { state: { username: user.name, isAdmin: true } })}
@@ -445,13 +462,22 @@ export default function Dashboard() {
                     <div className="db-card-info">
                       <div className="db-card-row">
                         <span className="db-card-name">{board.name}</span>
-                        <span className="db-card-date">
-                          {new Date(board.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                        </span>
+                        <button
+                          className={`db-star-btn${starred.has(board.name) ? " active" : ""}`}
+                          onClick={e => toggleStar(e, board.name)}
+                          title={starred.has(board.name) ? "Unstar board" : "Star board"}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 20 20" fill={starred.has(board.name) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M10 2l2.4 5H18l-4.5 3.3 1.7 5.5L10 13l-5.2 2.8 1.7-5.5L2 7h5.6z"/>
+                          </svg>
+                        </button>
                       </div>
+                      <span className="db-card-date">
+                        {new Date(board.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
                       <div className="db-card-meta">Created by <strong>{board.adminName}</strong></div>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}

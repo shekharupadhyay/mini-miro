@@ -28,10 +28,29 @@ router.post("/rooms", optionalAuth, async (req, res) => {
   res.status(201).json(room);
 });
 
-// GET /api/rooms/my — get all rooms created by the logged-in user
+// GET /api/rooms/my — get all rooms created by OR joined by the logged-in user
 router.get("/rooms/my", requireAuth, async (req, res) => {
-  const rooms = await Room.find({ adminId: req.user._id }).sort({ createdAt: -1 });
+  const rooms = await Room.find({
+    $or: [{ adminId: req.user._id }, { members: req.user._id }],
+  }).sort({ createdAt: -1 });
   res.json(rooms);
+});
+
+// POST /api/rooms/:name/join — record that the logged-in user joined this room
+router.post("/rooms/:name/join", requireAuth, async (req, res) => {
+  try {
+    const room = await Room.findOne({ name: req.params.name });
+    if (!room) return res.status(404).json({ error: "Room not found" });
+    // Admin doesn't need to be added to members
+    if (room.adminId?.equals(req.user._id)) return res.json({ ok: true });
+    await Room.findOneAndUpdate(
+      { name: req.params.name },
+      { $addToSet: { members: req.user._id } }
+    );
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 // GET /api/rooms/:name/exists — check if a room exists

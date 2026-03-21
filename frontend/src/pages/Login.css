@@ -1,24 +1,23 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
 .login-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #ffffff;
-  background-image: radial-gradient(circle, rgba(0,0,0,0.10) 1px, transparent 1px);
+  background-color: #f8f9fc;
+  background-image: radial-gradient(circle, rgba(1, 0, 41, 0.07) 1px, transparent 1px);
   background-size: 28px 28px;
   background-position: 14px 14px;
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 .login-card {
   background: #ffffff;
-  border: 1px solid rgba(0,0,0,0.09);
-  box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 8px 24px rgba(1, 0, 41, 0.12);
   padding: 48px 40px 40px;
-  border-radius: 20px;
+  border-radius: 1.25rem;
   width: 380px;
   text-align: center;
 }
@@ -26,9 +25,8 @@
 .login-logo {
   width: 52px;
   height: 52px;
-  border-radius: 14px;
-  background: rgba(79, 125, 255, 0.10);
-  border: 1px solid rgba(79, 125, 255, 0.25);
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, #010029 0%, #171848 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -38,20 +36,21 @@
 .login-logo svg {
   width: 24px;
   height: 24px;
-  stroke: #4f7dff;
+  stroke: #ffffff;
 }
 
 .login-title {
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: #111318;
+  font-family: 'Manrope', system-ui, sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #191c1e;
   margin-bottom: 8px;
 }
 
 .login-subtitle {
   font-size: 14px;
-  color: rgba(17,19,24,0.50);
+  color: rgba(25, 28, 30, 0.55);
   margin-bottom: 32px;
   line-height: 1.5;
 }
@@ -62,18 +61,18 @@
   justify-content: center;
   gap: 12px;
   width: 100%;
-  padding: 13px 16px;
-  border-radius: 11px;
-  border: 1px solid rgba(0,0,0,0.14);
-  background: #fff;
-  color: #111318;
+  padding: 12px 16px;
+  border-radius: 0.5rem;
+  border: none;
+  background: #f2f3f6;
+  color: #191c1e;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   letter-spacing: -0.01em;
   box-sizing: border-box;
-  transition: background 0.15s, box-shadow 0.15s, border-color 0.15s;
+  transition: background 0.15s, box-shadow 0.15s;
 }
 
 .google-signin-btn svg {
@@ -83,18 +82,17 @@
 }
 
 .google-signin-btn:hover {
-  background: #f5f6f8;
-  border-color: rgba(0,0,0,0.20);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  background: #e8eaef;
+  box-shadow: 0 8px 24px rgba(1, 0, 41, 0.10);
 }
 
 .google-signin-btn:active {
-  background: #eef0f4;
+  background: #f2f3f6;
 }
 
 .login-terms {
   margin-top: 20px;
   font-size: 12px;
-  color: rgba(17,19,24,0.35);
+  color: rgba(25, 28, 30, 0.35);
   line-height: 1.5;
 }

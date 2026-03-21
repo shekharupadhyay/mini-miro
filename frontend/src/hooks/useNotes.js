@@ -45,7 +45,7 @@ export function useNotes(boardId, socketRef) {
       color,
       rotation: 0,
     });
-    setNotes((prev) => [...prev, newNote]);
+    setNotes((prev) => prev.some((n) => n._id === newNote._id) ? prev : [...prev, newNote]);
     socketRef.current?.emit("note:created", newNote);
     return newNote._id; // caller can use this to start editing
   }

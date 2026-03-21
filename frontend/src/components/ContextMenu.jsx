@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import ContextMenuCanvas from "./ContextMenuCanvas";
-import ContextMenuNote   from "./ContextMenuNote";
-import ContextMenuShape  from "./ContextMenuShape";
+import ContextMenuCanvas    from "./ContextMenuCanvas";
+import ContextMenuNote      from "./ContextMenuNote";
+import ContextMenuShape     from "./ContextMenuShape";
+import ContextMenuFlexLine  from "./ContextMenuFlexLine";
 import "./contextMenu.css";
 
 // Estimated max heights per mode for viewport overflow clamping
-const MODE_HEIGHT = { canvas: 200, note: 340, shape: 400 };
+const MODE_HEIGHT = { canvas: 200, note: 340, shape: 400, flexline: 260 };
 
 export default function ContextMenu({
   open, x, y, onClose, mode = "note",
@@ -21,6 +22,9 @@ export default function ContextMenu({
   onTextColor, onFontFamily,
   currentTextColor  = "#111318",
   currentFontFamily = "sans",
+  // flexline-only
+  onLineType, currentLineType = "straight",
+  onLineStyle, currentLineStyle = "solid",
 }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ x, y });
@@ -77,6 +81,14 @@ export default function ContextMenu({
           onShapeColor={onShapeColor} onShapeFill={onShapeFill}
           currentShapeColor={currentShapeColor} currentShapeFill={currentShapeFill}
           {...textProps}
+        />
+      )}
+      {mode === "flexline" && (
+        <ContextMenuFlexLine
+          onDeleteShape={onDeleteShape} onClose={onClose}
+          onShapeColor={onShapeColor} currentShapeColor={currentShapeColor}
+          onLineType={onLineType}     currentLineType={currentLineType}
+          onLineStyle={onLineStyle}   currentLineStyle={currentLineStyle}
         />
       )}
     </div>

@@ -14,6 +14,9 @@ const shapeSchema = new mongoose.Schema(
     textColor:  { type: String, default: null },
     fontFamily: { type: String, default: "sans" },
     rotation:   { type: Number, default: 0 },
+    points:     { type: [{ x: Number, y: Number }], default: undefined },
+    lineType:   { type: String, default: "straight" }, // "straight" | "step" | "curved"
+    lineStyle:  { type: String, default: "solid" },    // "solid" | "dashed" | "dotted"
   },
   { timestamps: true }
 );

@@ -25,6 +25,7 @@ export default function makeShapesRouter(io) {
       text:     req.body.text     ?? "",
       color:    req.body.color    ?? "black",
       fillMode: req.body.fillMode ?? "none",
+      ...(req.body.points !== undefined && { points: req.body.points }),
     });
 
     io.to(boardId).emit("shape:created", shape);
@@ -34,7 +35,7 @@ export default function makeShapesRouter(io) {
   // PATCH update shape
   router.patch("/shapes/:shapeId", async (req, res) => {
     const { shapeId } = req.params;
-    const { x, y, w, h, text, color, fillMode, textColor, fontFamily, rotation } = req.body;
+    const { x, y, w, h, text, color, fillMode, textColor, fontFamily, rotation, points, lineType, lineStyle } = req.body;
 
     const update = {};
     if (x          !== undefined) update.x          = x;
@@ -47,6 +48,9 @@ export default function makeShapesRouter(io) {
     if (textColor  !== undefined) update.textColor  = textColor;
     if (fontFamily !== undefined) update.fontFamily = fontFamily;
     if (rotation   !== undefined) update.rotation   = rotation;
+    if (points     !== undefined) update.points     = points;
+    if (lineType   !== undefined) update.lineType   = lineType;
+    if (lineStyle  !== undefined) update.lineStyle  = lineStyle;
 
     const updated = await Shape.findByIdAndUpdate(shapeId, update, { new: true });
     if (!updated) return res.status(404).json({ error: "Shape not found" });

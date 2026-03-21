@@ -24,6 +24,8 @@
 /* ── Root shell ──────────────────────────────────────────────────── */
 .db-root {
   display: flex;
+  width: 100%;
+  min-width: 100vw;
   min-height: 100vh;
   background: var(--surface);
   color: var(--on-surface);
@@ -294,7 +296,6 @@
 .db-main {
   flex: 1;
   padding: 40px 40px 64px;
-  max-width: 1200px;
 }
 
 .db-welcome {
@@ -464,7 +465,6 @@
   overflow: hidden;
   cursor: pointer;
   text-align: left;
-  border: none;
   font-family: var(--font-body);
   box-shadow: var(--shadow-ambient);
   transition: box-shadow 0.18s, transform 0.18s;
@@ -514,11 +514,33 @@
 
 .db-card-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
+
+.db-star-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  color: var(--on-surface-var);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  padding: 0;
+}
+.db-board-card:hover .db-star-btn,
+.db-star-btn.active { opacity: 1; }
+.db-star-btn:hover { background: var(--surface-low); color: var(--on-surface); }
+.db-star-btn.active { color: #f59e0b; }
+.db-star-btn.active:hover { background: rgba(245,158,11,0.10); }
 
 .db-card-name {
   font-family: var(--font-display);

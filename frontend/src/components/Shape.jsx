@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { getBoardScale } from "../utils/canvas";
 import "./shape.css";
 
-// 8 colours — hex values used as stroke and (with opacity) as fill
 const COLORS = [
   { id: "black",  hex: "#1a1a1a" },
   { id: "red",    hex: "#ef4444" },
@@ -16,19 +15,254 @@ const COLORS = [
 
 function getFill(hex, fillMode) {
   if (fillMode === "none")  return "none";
-  if (fillMode === "semi")  return hex + "33"; // ~20% opacity
-  if (fillMode === "solid") return hex + "cc"; // ~80% opacity
+  if (fillMode === "semi")  return hex + "33";
+  if (fillMode === "solid") return hex + "cc";
   return "none";
 }
 
-export default function Shape({
+// ── Flexible polyline ─────────────────────────────────────────────────
+const FL_PAD = 24; // padding around the bounding box
+
+function FlexLine({ shape: shapeData, isSelected, onSelect, onUpdate, onOpenMenu }) {
+  const { _id, color = "black", points: pts,
+          lineType = "straight", lineStyle = "solid" } = shapeData;
+  const elRef = useRef(null);
+  const strokeColor = COLORS.find(c => c.id === color)?.hex ?? "#1a1a1a";
+
+  // Stroke dash pattern
+  const dashArray = lineStyle === "dashed" ? "8 5"
+                  : lineStyle === "dotted" ? "2 5"
+                  : undefined;
+
+  // Bounding box in world space
+  const xs = pts.map(p => p.x);
+  const ys = pts.map(p => p.y);
+  const bx = Math.min(...xs) - FL_PAD;
+  const by = Math.min(...ys) - FL_PAD;
+  const bw = Math.max(...xs) - bx + FL_PAD;
+  const bh = Math.max(...ys) - by + FL_PAD;
+
+  // Convert world → SVG-local coords
+  const lx = p => p.x - bx;
+  const ly = p => p.y - by;
+
+  const polylineStr = pts.map(p => `${lx(p)},${ly(p)}`).join(" ");
+
+  // Step polyline: between each pair, go horizontal to midX then vertical
+  const stepPolylineStr = (() => {
+    const parts = [`${lx(pts[0])},${ly(pts[0])}`];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p = pts[i], q = pts[i + 1];
+      const mx = (lx(p) + lx(q)) / 2;
+      parts.push(`${mx},${ly(p)}`, `${mx},${ly(q)}`, `${lx(q)},${ly(q)}`);
+    }
+    return parts.join(" ");
+  })();
+
+  // Curved path: Catmull-Rom spline converted to cubic bezier
+  const curvedPathStr = (() => {
+    let d = `M ${lx(pts[0])},${ly(pts[0])}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const prev = pts[Math.max(0, i - 1)];
+      const cur  = pts[i];
+      const next = pts[i + 1];
+      const far  = pts[Math.min(pts.length - 1, i + 2)];
+      const cp1x = lx(cur)  + (lx(next) - lx(prev)) / 6;
+      const cp1y = ly(cur)  + (ly(next) - ly(prev)) / 6;
+      const cp2x = lx(next) - (lx(far)  - lx(cur))  / 6;
+      const cp2y = ly(next) - (ly(far)  - ly(cur))  / 6;
+      d += ` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${lx(next)},${ly(next)}`;
+    }
+    return d;
+  })();
+
+  const activePolyStr = lineType === "step" ? stepPolylineStr : polylineStr;
+
+  // Midpoints for drag handles — on the actual curve for "curved", straight midpoint otherwise
+  const midpoints = pts.slice(0, -1).map((p, i) => {
+    if (lineType === "curved") {
+      const prev = pts[Math.max(0, i - 1)];
+      const cur  = pts[i];
+      const next = pts[i + 1];
+      const far  = pts[Math.min(pts.length - 1, i + 2)];
+      const cp1x = lx(cur)  + (lx(next) - lx(prev)) / 6;
+      const cp1y = ly(cur)  + (ly(next) - ly(prev)) / 6;
+      const cp2x = lx(next) - (lx(far)  - lx(cur))  / 6;
+      const cp2y = ly(next) - (ly(far)  - ly(cur))  / 6;
+      // Cubic bezier at t=0.5: (P0 + 3*P1 + 3*P2 + P3) / 8
+      const mlx = (lx(cur) + 3 * cp1x + 3 * cp2x + lx(next)) / 8;
+      const mly = (ly(cur) + 3 * cp1y + 3 * cp2y + ly(next)) / 8;
+      return { wx: mlx + bx, wy: mly + by, lx: mlx, ly: mly, segIdx: i };
+    }
+    return {
+      wx: (p.x + pts[i + 1].x) / 2,
+      wy: (p.y + pts[i + 1].y) / 2,
+      lx: (lx(p) + lx(pts[i + 1])) / 2,
+      ly: (ly(p) + ly(pts[i + 1])) / 2,
+      segIdx: i,
+    };
+  });
+
+  function handlePolylineMouseDown(e) {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    onSelect(_id);
+    const scale = getBoardScale(elRef.current);
+    const startX = e.clientX, startY = e.clientY;
+    const origPts = pts.map(p => ({ x: p.x, y: p.y }));
+
+    function onMove(ev) {
+      const dx = (ev.clientX - startX) / scale;
+      const dy = (ev.clientY - startY) / scale;
+      onUpdate(_id, { points: origPts.map(p => ({ x: p.x + dx, y: p.y + dy })) });
+    }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  function handleCornerDrag(e, idx) {
+    e.stopPropagation();
+    e.preventDefault();
+    const scale = getBoardScale(elRef.current);
+    const startX = e.clientX, startY = e.clientY;
+    const origPt = { x: pts[idx].x, y: pts[idx].y };
+
+    function onMove(ev) {
+      const dx = (ev.clientX - startX) / scale;
+      const dy = (ev.clientY - startY) / scale;
+      onUpdate(_id, {
+        points: pts.map((p, i) => i === idx ? { x: origPt.x + dx, y: origPt.y + dy } : { x: p.x, y: p.y }),
+      });
+    }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  function handleMidpointDrag(e, segIdx, wx, wy) {
+    e.stopPropagation();
+    e.preventDefault();
+    const scale = getBoardScale(elRef.current);
+    const startX = e.clientX, startY = e.clientY;
+    const newIdx = segIdx + 1;
+    const basePts = [
+      ...pts.slice(0, segIdx + 1).map(p => ({ x: p.x, y: p.y })),
+      { x: wx, y: wy },
+      ...pts.slice(segIdx + 1).map(p => ({ x: p.x, y: p.y })),
+    ];
+    onUpdate(_id, { points: basePts });
+
+    function onMove(ev) {
+      const dx = (ev.clientX - startX) / scale;
+      const dy = (ev.clientY - startY) / scale;
+      onUpdate(_id, {
+        points: basePts.map((p, i) => i === newIdx ? { x: wx + dx, y: wy + dy } : p),
+      });
+    }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  return (
+    <div
+      ref={elRef}
+      style={{ position: "absolute", left: bx, top: by, width: bw, height: bh, pointerEvents: "none" }}
+    >
+      <svg
+        width={bw} height={bh}
+        style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none", overflow: "visible" }}
+      >
+        {/* Wide transparent stroke — actual hit area */}
+        {lineType === "curved" ? (
+          <path
+            d={curvedPathStr}
+            fill="none" stroke="transparent" strokeWidth="14"
+            style={{ pointerEvents: "stroke", cursor: "move" }}
+            onMouseDown={handlePolylineMouseDown}
+            onContextMenu={(e) => {
+              e.preventDefault(); e.stopPropagation();
+              onSelect(_id);
+              onOpenMenu?.({ shapeId: _id, x: e.clientX, y: e.clientY });
+            }}
+          />
+        ) : (
+          <polyline
+            points={activePolyStr}
+            fill="none" stroke="transparent" strokeWidth="14"
+            strokeLinejoin={lineType === "step" ? "miter" : "round"}
+            style={{ pointerEvents: "stroke", cursor: "move" }}
+            onMouseDown={handlePolylineMouseDown}
+            onContextMenu={(e) => {
+              e.preventDefault(); e.stopPropagation();
+              onSelect(_id);
+              onOpenMenu?.({ shapeId: _id, x: e.clientX, y: e.clientY });
+            }}
+          />
+        )}
+        {/* Visible line */}
+        {lineType === "curved" ? (
+          <path
+            d={curvedPathStr}
+            fill="none" stroke={strokeColor} strokeWidth="2"
+            strokeLinecap="round" strokeLinejoin="round"
+            strokeDasharray={dashArray}
+            style={{ pointerEvents: "none" }}
+          />
+        ) : (
+          <polyline
+            points={activePolyStr}
+            fill="none" stroke={strokeColor} strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin={lineType === "step" ? "miter" : "round"}
+            strokeDasharray={dashArray}
+            style={{ pointerEvents: "none" }}
+          />
+        )}
+        {/* Corner handles ○ — only when selected */}
+        {isSelected && pts.map((p, i) => (
+          <circle
+            key={`c${i}`}
+            cx={lx(p)} cy={ly(p)} r={5}
+            fill="white" stroke="#3b82f6" strokeWidth="2"
+            style={{ pointerEvents: "all", cursor: "move" }}
+            onMouseDown={(e) => handleCornerDrag(e, i)}
+          />
+        ))}
+        {/* Midpoint handles ● — only when selected */}
+        {isSelected && midpoints.map((m) => (
+          <circle
+            key={`m${m.segIdx}`}
+            cx={m.lx} cy={m.ly} r={4}
+            fill="#3b82f6" stroke="white" strokeWidth="1.5"
+            style={{ pointerEvents: "all", cursor: "crosshair" }}
+            onMouseDown={(e) => handleMidpointDrag(e, m.segIdx, m.wx, m.wy)}
+          />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+// ── Regular shapes (rect / circle / triangle / old line) ─────────────
+function RegularShape({
   shape: shapeData,
   isSelected,
-  isEditing,       // controlled from Board — true when context menu "Edit text" chosen
+  isEditing,
   onSelect,
   onUpdate,
   onOpenMenu,
-  onStopEdit,      // () => void — called when textarea blurs/commits
+  onStopEdit,
 }) {
   const { _id, shape, x, y, w, h, text, color = "black", fillMode = "none",
           textColor = null, fontFamily = "sans", rotation = 0 } = shapeData;
@@ -45,16 +279,15 @@ export default function Shape({
   const [draft,     setDraft]     = useState(text ?? "");
   const textareaRef = useRef(null);
 
-  const colorHex    = COLORS.find(c => c.id === color)?.hex ?? "#1a1a1a";
-  const strokeColor = colorHex;
-  const fillColor   = getFill(colorHex, fillMode);
+  const colorHex          = COLORS.find(c => c.id === color)?.hex ?? "#1a1a1a";
+  const strokeColor       = colorHex;
+  const fillColor         = getFill(colorHex, fillMode);
   const resolvedTextColor = textColor ?? strokeColor;
   const resolvedFont      = FONT_MAP[fontFamily] ?? FONT_MAP.sans;
-  const isLine      = shape === "line";
-  const svgW        = w;
-  const svgH        = isLine ? 4 : h;
+  const isLine            = shape === "line";
+  const svgW              = w;
+  const svgH              = isLine ? 4 : h;
 
-  // Focus contenteditable when editing starts — set text and select all
   useEffect(() => {
     if (editing && textareaRef.current) {
       const el = textareaRef.current;
@@ -68,7 +301,6 @@ export default function Shape({
     }
   }, [editing]); // eslint-disable-line
 
-  // Sync controlled isEditing prop → local editing state
   useEffect(() => {
     if (isEditing && !editing) {
       setDraft(text ?? "");
@@ -76,7 +308,6 @@ export default function Shape({
     }
   }, [isEditing]); // eslint-disable-line
 
-  // ── Drag to move ──────────────────────────────────────────────────
   function handleBodyMouseDown(e) {
     if (e.button !== 0 || editing) return;
     e.stopPropagation();
@@ -103,7 +334,6 @@ export default function Shape({
     window.addEventListener("mouseup", onUp);
   }
 
-  // ── Resize ────────────────────────────────────────────────────────
   function handleResizeMouseDown(e, corner) {
     e.stopPropagation();
     e.preventDefault();
@@ -111,40 +341,29 @@ export default function Shape({
     const startX = e.clientX, startY = e.clientY;
     const origW = w, origH = h;
 
-    // Capture rotation at drag-start in radians
     const theta = (rotation * Math.PI) / 180;
     const cosT = Math.cos(theta);
     const sinT = Math.sin(theta);
 
-    // Shape center in world coords (stays fixed for SE corner;
-    // for other corners the opposite corner is fixed instead)
     const origCx = x + origW / 2;
     const origCy = y + origH / 2;
 
-    // For each corner, identify which corner is the FIXED anchor
-    // (the corner diagonally opposite) in local space, then convert to world.
-    // Local coords: origin at shape top-left, x→right, y→down
     const anchors = {
-      se: { lx: -origW / 2, ly: -origH / 2 }, // NW is fixed
-      sw: { lx:  origW / 2, ly: -origH / 2 }, // NE is fixed
-      ne: { lx: -origW / 2, ly:  origH / 2 }, // SW is fixed
-      nw: { lx:  origW / 2, ly:  origH / 2 }, // SE is fixed
+      se: { lx: -origW / 2, ly: -origH / 2 },
+      sw: { lx:  origW / 2, ly: -origH / 2 },
+      ne: { lx: -origW / 2, ly:  origH / 2 },
+      nw: { lx:  origW / 2, ly:  origH / 2 },
     };
     const anchor = anchors[corner];
-    // Anchor in world coords
     const anchorWx = origCx + anchor.lx * cosT - anchor.ly * sinT;
     const anchorWy = origCy + anchor.lx * sinT + anchor.ly * cosT;
 
     function onMove(ev) {
-      // Raw screen delta → world delta
       const sdx = (ev.clientX - startX) / scale;
       const sdy = (ev.clientY - startY) / scale;
-
-      // Project screen delta onto shape's local axes
       const localDx =  sdx * cosT + sdy * sinT;
       const localDy = -sdx * sinT + sdy * cosT;
 
-      // New size depending on which corner is dragged
       let newW = origW, newH = origH;
       let localSignX = 1, localSignY = 1;
 
@@ -156,17 +375,11 @@ export default function Shape({
       newW = Math.max(40, newW);
       newH = Math.max(40, newH);
 
-      // New center: anchor stays fixed, center is at anchor + half-size in local axes
       const newCx = anchorWx + (newW / 2) * localSignX * cosT - (newH / 2) * localSignY * sinT;
       const newCy = anchorWy + (newW / 2) * localSignX * sinT + (newH / 2) * localSignY * cosT;
 
-      // Back to top-left world position
-      const newX = newCx - newW / 2;
-      const newY = newCy - newH / 2;
-
-      onUpdate(_id, { x: newX, y: newY, w: newW, h: newH });
+      onUpdate(_id, { x: newCx - newW / 2, y: newCy - newH / 2, w: newW, h: newH });
     }
-
     function onUp() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
@@ -175,24 +388,19 @@ export default function Shape({
     window.addEventListener("mouseup", onUp);
   }
 
-  // ── Rotate handle ─────────────────────────────────────────────────
   function handleRotateMouseDown(e) {
     e.stopPropagation();
     e.preventDefault();
-
     const el = elRef.current;
     const rect = el.getBoundingClientRect();
     const cx = rect.left + rect.width  / 2;
     const cy = rect.top  + rect.height / 2;
-
-    // Angle from center to starting mouse position
     const startAngle = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
     const startRot   = rotation;
 
     function onMove(ev) {
       const angle = Math.atan2(ev.clientY - cy, ev.clientX - cx) * (180 / Math.PI);
-      const delta = angle - startAngle;
-      onUpdate(_id, { rotation: (startRot + delta + 360) % 360 });
+      onUpdate(_id, { rotation: (startRot + (angle - startAngle) + 360) % 360 });
     }
     function onUp() {
       window.removeEventListener("mousemove", onMove);
@@ -202,7 +410,6 @@ export default function Shape({
     window.addEventListener("mouseup", onUp);
   }
 
-  // ── Text edit ─────────────────────────────────────────────────────
   function handleDoubleClick(e) {
     e.stopPropagation();
     setDraft(text ?? "");
@@ -215,7 +422,6 @@ export default function Shape({
     onStopEdit?.();
   }
 
-  // ── SVG ───────────────────────────────────────────────────────────
   function renderSVG() {
     if (isLine) return (
       <svg width={svgW} height={4} className="shape-svg">
@@ -240,7 +446,6 @@ export default function Shape({
         </svg>
       );
     }
-    // rectangle
     return (
       <svg width={svgW} height={svgH} className="shape-svg">
         <rect x="2" y="2" width={svgW - 4} height={svgH - 4} rx="10" ry="10"
@@ -249,9 +454,8 @@ export default function Shape({
     );
   }
 
-  // For lines: expand container height when text is present or being edited
   const lineHasLabel = isLine && (text || editing);
-  const containerH = isLine ? (lineHasLabel ? 36 : 4) : svgH;
+  const containerH   = isLine ? (lineHasLabel ? 36 : 4) : svgH;
 
   return (
     <div
@@ -271,19 +475,15 @@ export default function Shape({
         onOpenMenu?.({ shapeId: _id, x: e.clientX, y: e.clientY });
       }}
     >
-      {/* For lines, render the line at the bottom of the container */}
       {isLine ? (
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}>
           {renderSVG()}
         </div>
       ) : renderSVG()}
 
-      {/* Text overlay for non-lines */}
       {!editing && text && !isLine && (
         <div className="shape-text-overlay" style={{ color: resolvedTextColor, fontFamily: resolvedFont }}>{text}</div>
       )}
-
-      {/* Label above line */}
       {!editing && text && isLine && (
         <div className="shape-line-label" style={{ color: resolvedTextColor, fontFamily: resolvedFont }}>{text}</div>
       )}
@@ -308,7 +508,6 @@ export default function Shape({
         </div>
       )}
 
-      {/* Corner resize handles */}
       {isSelected && !isLine && (
         <>
           <div className="shape-handle nw" onMouseDown={e => handleResizeMouseDown(e, "nw")} />
@@ -324,14 +523,9 @@ export default function Shape({
         </>
       )}
 
-      {/* Rotate handle — circular arrow above shape center */}
       {isSelected && !editing && (
-        <div className="shape-rotate-handle" onMouseDown={handleRotateMouseDown} title="Drag to rotate">
-          ↻
-        </div>
+        <div className="shape-rotate-handle" onMouseDown={handleRotateMouseDown} title="Drag to rotate">↻</div>
       )}
-
-      {/* Double-click hint */}
       {isSelected && !editing && (
         <div className="shape-hint">
           {isLine ? "Double-click to add label" : "Double-click to edit text"}
@@ -339,4 +533,13 @@ export default function Shape({
       )}
     </div>
   );
+}
+
+// ── Public export — picks the right renderer ──────────────────────────
+export default function Shape(props) {
+  const { shape: shapeData } = props;
+  if (shapeData.shape === "line" && shapeData.points?.length >= 2) {
+    return <FlexLine {...props} />;
+  }
+  return <RegularShape {...props} />;
 }

@@ -30,6 +30,7 @@ export default function Board() {
 
   // ── UI-only state ─────────────────────────────────────────────────
   const [placingTool,    setPlacingTool]    = useState(null);
+  const [drawingLine,    setDrawingLine]    = useState(null); // { p1, p2 } preview while drag-drawing
   const [editingNoteId,  setEditingNoteId]  = useState(null);
   const [editingShapeId, setEditingShapeId] = useState(null);
   const [selectedNoteId, setSelectedNoteId] = useState(null);
@@ -57,7 +58,7 @@ export default function Board() {
 
   const {
     shapes, setShapes,
-    addShapeAt, handleShapeUpdate, handleDeleteShape,
+    addShapeAt, addFlexLine, handleShapeUpdate, handleDeleteShape,
   } = useShapes(boardId, socketRef);
 
   const { socket, members } = useSocket(
@@ -99,7 +100,6 @@ export default function Board() {
       const { error } = await res.json().catch(() => ({}));
       throw new Error(error || "Rename failed");
     }
-    // Tell all room members (including self) to navigate to the new URL
     socket?.emit("board:rename", { newName });
   }
 
@@ -110,7 +110,6 @@ export default function Board() {
       headers: authHeaders(),
     });
     if (!res.ok) throw new Error("Delete failed");
-    // Tell all room members (including self) to go home
     socket?.emit("board:delete");
   }
 
@@ -121,7 +120,7 @@ export default function Board() {
 
   // Escape cancels placing tool
   useEffect(() => {
-    function onKey(e) { if (e.key === "Escape") setPlacingTool(null); }
+    function onKey(e) { if (e.key === "Escape") { setPlacingTool(null); setDrawingLine(null); } }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
@@ -134,7 +133,9 @@ export default function Board() {
   }
 
   function openShapeMenu({ shapeId, x, y }) {
-    setMenu({ open: true, x, y, mode: "shape", noteId: null, shapeId, worldX: 0, worldY: 0 });
+    const shape = shapes.find((s) => s._id === shapeId);
+    const mode = shape?.shape === "line" && shape?.points?.length >= 2 ? "flexline" : "shape";
+    setMenu({ open: true, x, y, mode, noteId: null, shapeId, worldX: 0, worldY: 0 });
   }
 
   // ── Mouse handler (built by useCamera, wired here) ─────────────
@@ -144,12 +145,13 @@ export default function Board() {
       if (placingTool === "note") {
         const newId = await addNoteAt(worldX, worldY);
         setEditingNoteId(newId);
+        setPlacingTool(null);
       } else if (placingTool?.startsWith("shape:")) {
         const shapeType = placingTool.split(":")[1];
         const newId = await addShapeAt(worldX, worldY, { shape: shapeType });
         setSelectedShapeId(newId);
+        setPlacingTool(null);
       }
-      setPlacingTool(null);
     },
     onRightClickCanvas: (screenX, screenY) => {
       const world = screenToWorld(screenX, screenY);
@@ -162,6 +164,51 @@ export default function Board() {
     onDeselect: () => { setSelectedShapeId(null); setSelectedNoteId(null); },
     closeMenu,
   });
+
+  // ── Line draw interceptor (must be after handleMouseDown) ─────────
+  const screenToWorldRef = useRef(screenToWorld);
+  screenToWorldRef.current = screenToWorld;
+  const addFlexLineRef = useRef(addFlexLine);
+  addFlexLineRef.current = addFlexLine;
+
+  const handleViewportMouseDown = (e) => {
+    if (placingTool === "shape:line" && e.button === 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      // Store viewport-relative screen coords for the preview SVG
+      const rect = viewportRef.current.getBoundingClientRect();
+      const p1Screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      // Store world coords for final shape creation
+      const p1World = screenToWorldRef.current(e.clientX, e.clientY);
+      const p1 = { x: Math.round(p1World.x), y: Math.round(p1World.y) };
+
+      setDrawingLine({ p1: p1Screen, p2: p1Screen });
+
+      const onMove = (ev) => {
+        setDrawingLine({ p1: p1Screen, p2: { x: ev.clientX - rect.left, y: ev.clientY - rect.top } });
+      };
+      const onUp = async (ev) => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        setDrawingLine(null);
+        setPlacingTool(null);
+        const p2World = screenToWorldRef.current(ev.clientX, ev.clientY);
+        const p2 = { x: Math.round(p2World.x), y: Math.round(p2World.y) };
+        if (Math.hypot(p2.x - p1.x, p2.y - p1.y) > 5) {
+          try {
+            const newId = await addFlexLineRef.current(p1, p2);
+            setSelectedShapeId(newId);
+          } catch (err) {
+            console.error("addFlexLine failed:", err);
+          }
+        }
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+      return;
+    }
+    handleMouseDown(e);
+  };
 
   // ── Derived context menu values ───────────────────────────────────
   const COLOR_HEX = {
@@ -204,7 +251,7 @@ export default function Board() {
       <div className="board-body">
         <div
           ref={viewportRef}
-          onMouseDown={handleMouseDown}
+          onMouseDown={handleViewportMouseDown}
           onContextMenu={(e) => e.preventDefault()}
           className="board-viewport"
           style={{
@@ -252,7 +299,24 @@ export default function Board() {
                 onStopEdit={() => setEditingShapeId(null)}
               />
             ))}
+
           </div>
+
+          {/* ── Line draw preview (viewport-level, screen coords) ── */}
+          {drawingLine && (
+            <svg style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 50 }}>
+              <line
+                x1={drawingLine.p1.x} y1={drawingLine.p1.y}
+                x2={drawingLine.p2.x} y2={drawingLine.p2.y}
+                stroke="#010029" strokeWidth="2" strokeDasharray="7 4" opacity="0.7"
+                strokeLinecap="round"
+              />
+              <circle cx={drawingLine.p1.x} cy={drawingLine.p1.y} r="5"
+                fill="white" stroke="#010029" strokeWidth="2" />
+              <circle cx={drawingLine.p2.x} cy={drawingLine.p2.y} r="5"
+                fill="white" stroke="#010029" strokeWidth="2" />
+            </svg>
+          )}
 
           {/* ── Bottom zoom bar ────────────────────────────── */}
           <div className="board-bottom-bar">
@@ -310,6 +374,10 @@ export default function Board() {
           }
           currentTextColor={currentTextColor}
           currentFontFamily={currentFontFamily}
+          onLineType={(lt) => handleShapeUpdate(menu.shapeId, { lineType: lt })}
+          currentLineType={menuShape?.lineType  ?? "straight"}
+          onLineStyle={(ls) => handleShapeUpdate(menu.shapeId, { lineStyle: ls })}
+          currentLineStyle={menuShape?.lineStyle ?? "solid"}
         />
 
         <DeleteNoteModal
