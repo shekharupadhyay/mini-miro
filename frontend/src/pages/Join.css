@@ -229,3 +229,37 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ─── Google Sign-In button ──────────────────────────────────────── */
+.google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 9px;
+  border: 1px solid rgba(0,0,0,0.14);
+  background: #fff;
+  color: #111318;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.01em;
+  box-sizing: border-box;
+  transition: background 0.15s, box-shadow 0.15s, border-color 0.15s;
+  margin-bottom: 4px;
+}
+
+.google-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.google-btn:hover {
+  background: #f5f6f8;
+  border-color: rgba(0,0,0,0.20);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}

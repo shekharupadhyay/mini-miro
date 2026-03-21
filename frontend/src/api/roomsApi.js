@@ -1,9 +1,14 @@
 import axios from "axios";
+import { authHeaders } from "../utils/auth";
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 
 export async function createRoom(name, adminName) {
-  const res = await axios.post(`${API_BASE}/api/rooms`, { name, adminName });
+  const res = await axios.post(
+    `${API_BASE}/api/rooms`,
+    { name, adminName },
+    { headers: authHeaders() }
+  );
   return res.data;
 }
 
@@ -14,5 +19,10 @@ export async function checkRoomExists(name) {
 
 export async function getRoom(name) {
   const res = await axios.get(`${API_BASE}/api/rooms/${encodeURIComponent(name)}`);
+  return res.data;
+}
+
+export async function getMyRooms() {
+  const res = await axios.get(`${API_BASE}/api/rooms/my`, { headers: authHeaders() });
   return res.data;
 }

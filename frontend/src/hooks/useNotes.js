@@ -35,7 +35,7 @@ export function useNotes(boardId, socketRef) {
     socketRef.current?.emit("note:updated", { _id: id, x, y });
   }
 
-  async function addNoteAt(worldX, worldY, color = "yellow") {
+  async function addNoteAt(worldX, worldY, color = "#fff9c4") {
     const newNote = await createNote(boardId, {
       text: "",
       x: Math.round(worldX),

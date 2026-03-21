@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 
 import { useSocket }  from "../hooks/useSocket";
 import { useCamera }  from "../hooks/useCamera";
 import { useNotes }   from "../hooks/useNotes";
 import { useShapes }  from "../hooks/useShapes";
 import { exportAsPng }  from "../utils/exportAsPng";
+import { authHeaders }  from "../utils/auth";
 
 import BoardTopbar      from "../components/BoardTopbar";
 import BoardLeftToolbar from "../components/BoardLeftToolbar";
@@ -14,12 +15,16 @@ import ContextMenu      from "../components/ContextMenu";
 import ChatPanel        from "../components/ChatPanel";
 import Note             from "../components/Note";
 import Shape            from "../components/Shape";
+import ReactionOverlay  from "../components/ReactionOverlay";
 
 import "./board.css";
+
+const API = import.meta.env.VITE_API_BASE;
 
 export default function Board() {
   const { boardId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const { username = "Guest", isAdmin = false } = location.state || {};
   const viewportRef = useRef(null);
 
@@ -27,27 +32,26 @@ export default function Board() {
   const [placingTool,    setPlacingTool]    = useState(null);
   const [editingNoteId,  setEditingNoteId]  = useState(null);
   const [editingShapeId, setEditingShapeId] = useState(null);
+  const [selectedNoteId, setSelectedNoteId] = useState(null);
   const [selectedShapeId,setSelectedShapeId]= useState(null);
   const [chatOpen,       setChatOpen]       = useState(false);
   const [deleteModal,    setDeleteModal]    = useState({ open: false, noteId: null });
+  const [reactions,      setReactions]      = useState([]);
   const [menu, setMenu] = useState({
     open: false, x: 0, y: 0,
     mode: "canvas", noteId: null, shapeId: null,
     worldX: 0, worldY: 0,
   });
 
-  // ── Notes & Shapes state (used by useSocket for remote events) ────
-  const [notesState,  setNotesState]  = useState([]);
-  const [shapesState, setShapesState] = useState([]);
-
   // ── Hooks ─────────────────────────────────────────────────────────
-  const { socket, socketRef, members } = useSocket(
-    boardId, username, setNotesState, setShapesState
-  );
+  const socketRef        = useRef(null);
+  const onReactionRef    = useRef(null);
+  const onBoardEventRef  = useRef(null);
+  const getAvatarPosRef  = useRef(null);  // set by BoardTopbar
 
   const {
     notes, setNotes,
-    addNoteAt, handleNoteUpdate, onPositionChange,
+    addNoteAt, handleNoteUpdate,
     handleDeleteNote, handleSaveNoteText,
   } = useNotes(boardId, socketRef);
 
@@ -56,16 +60,64 @@ export default function Board() {
     addShapeAt, handleShapeUpdate, handleDeleteShape,
   } = useShapes(boardId, socketRef);
 
+  const { socket, members } = useSocket(
+    boardId, username, setNotes, setShapes, socketRef, onReactionRef, onBoardEventRef
+  );
+
+  // ── Reactions ─────────────────────────────────────────────────────
+  onReactionRef.current = function handleReaction({ emoji, username: sender }) {
+    const x = 5 + Math.random() * 85;
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setReactions((prev) => [...prev, { id, emoji, username: sender, x: `${x}vw` }]);
+    setTimeout(() => setReactions((prev) => prev.filter((r) => r.id !== id)), 3400);
+  };
+
+  // ── Board events (rename / delete broadcast) ──────────────────────
+  onBoardEventRef.current = function handleBoardEvent({ type, newName }) {
+    if (type === "renamed") {
+      navigate(`/board/${newName}`, { replace: true, state: { username, isAdmin } });
+    }
+    if (type === "deleted") {
+      navigate("/", { replace: true });
+    }
+  };
+
+  function sendReaction(emoji) {
+    socket?.emit("reaction", { emoji, username });
+  }
+
   const onExport = () => exportAsPng(boardId, notes, shapes);
 
+  // ── Board rename (admin) ───────────────────────────────────────────
+  async function handleBoardRename(newName) {
+    const res = await fetch(`${API}/api/rooms/${encodeURIComponent(boardId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ name: newName }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      throw new Error(error || "Rename failed");
+    }
+    // Tell all room members (including self) to navigate to the new URL
+    socket?.emit("board:rename", { newName });
+  }
+
+  // ── Board delete (admin) ───────────────────────────────────────────
+  async function handleBoardDelete() {
+    const res = await fetch(`${API}/api/rooms/${encodeURIComponent(boardId)}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error("Delete failed");
+    // Tell all room members (including self) to go home
+    socket?.emit("board:delete");
+  }
+
   const {
-    camera, screenToWorld, handleWheel,
+    camera, screenToWorld,
     buildMouseDownHandler, zoomIn, zoomOut, resetView, panRef,
   } = useCamera(viewportRef);
-
-  // Keep notes/shapes in sync with socket-driven state updates
-  useEffect(() => { if (notesState.length)  setNotes(notesState);  }, [notesState]);  // eslint-disable-line
-  useEffect(() => { if (shapesState.length) setShapes(shapesState); }, [shapesState]); // eslint-disable-line
 
   // Escape cancels placing tool
   useEffect(() => {
@@ -107,7 +159,7 @@ export default function Board() {
         worldX: world.x, worldY: world.y,
       });
     },
-    onDeselect: () => setSelectedShapeId(null),
+    onDeselect: () => { setSelectedShapeId(null); setSelectedNoteId(null); },
     closeMenu,
   });
 
@@ -140,17 +192,18 @@ export default function Board() {
         username={username}
         isAdmin={isAdmin}
         members={members}
-        camera={camera}
-        onZoomIn={zoomIn}
-        onZoomOut={zoomOut}
-        onReset={resetView}
         onExport={onExport}
+        chatOpen={chatOpen}
+        onChatToggle={() => setChatOpen((o) => !o)}
+        onReact={sendReaction}
+        getAvatarPosRef={getAvatarPosRef}
+        onRename={handleBoardRename}
+        onDelete={handleBoardDelete}
       />
 
       <div className="board-body">
         <div
           ref={viewportRef}
-          onWheel={handleWheel}
           onMouseDown={handleMouseDown}
           onContextMenu={(e) => e.preventDefault()}
           className="board-viewport"
@@ -172,11 +225,11 @@ export default function Board() {
               <Note
                 key={n._id}
                 note={n}
+                isSelected={selectedNoteId === n._id}
                 isEditing={editingNoteId === n._id}
+                onSelect={(id) => setSelectedNoteId(id)}
                 onOpenMenu={openNoteMenu}
                 onUpdate={handleNoteUpdate}
-                onPositionChange={onPositionChange}
-                screenToWorld={screenToWorld}
                 onStartEdit={() => setEditingNoteId(n._id)}
                 onStopEdit={() => setEditingNoteId(null)}
                 onSaveEdit={async (noteId, text) => {
@@ -201,8 +254,26 @@ export default function Board() {
             ))}
           </div>
 
-          <div className="board-hint">
-            Right-click canvas to add • Right-click note for actions • Pan: right-click drag / middle mouse • Zoom: scroll • Scale: {camera.scale.toFixed(2)}
+          {/* ── Bottom zoom bar ────────────────────────────── */}
+          <div className="board-bottom-bar">
+            <button className="bbar-btn" onClick={zoomOut} title="Zoom out">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <circle cx="9" cy="9" r="6"/><path d="M15 15l3 3"/><path d="M6.5 9h5"/>
+              </svg>
+            </button>
+            <span className="bbar-zoom-label">{Math.round(camera.scale * 100)}%</span>
+            <button className="bbar-btn" onClick={zoomIn} title="Zoom in">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <circle cx="9" cy="9" r="6"/><path d="M15 15l3 3"/><path d="M9 6.5v5M6.5 9h5"/>
+              </svg>
+            </button>
+            <div className="bbar-sep" />
+            <button className="bbar-fit-btn" onClick={resetView}>
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4"/>
+              </svg>
+              Fit View
+            </button>
           </div>
         </div>
 
@@ -261,9 +332,9 @@ export default function Board() {
       <BoardLeftToolbar
         placingTool={placingTool}
         setPlacingTool={setPlacingTool}
-        chatOpen={chatOpen}
-        setChatOpen={setChatOpen}
       />
+
+      <ReactionOverlay reactions={reactions} />
     </div>
   );
 }

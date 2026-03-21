@@ -1,17 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { io as socketIO } from "socket.io-client";
 
 /**
  * Manages the Socket.IO connection, presence, and real-time board events.
  * Calls setNotes / setShapes directly so Board doesn't need to re-wire events.
+ * socketRef is owned by Board and passed in so useNotes/useShapes can emit
+ * on the same socket instance.
  */
-export function useSocket(boardId, username, setNotes, setShapes) {
-  const socketRef = useRef(null);
+export function useSocket(boardId, username, setNotes, setShapes, socketRef, onReactionRef, onBoardEventRef) {
   const [socket, setSocket] = useState(null);
   const [members, setMembers] = useState([]);
 
   useEffect(() => {
-    const s = socketIO(import.meta.env.VITE_API_URL, {
+    const s = socketIO(import.meta.env.VITE_API_BASE, {
       withCredentials: true,
       transports: ["websocket"],
     });
@@ -52,11 +53,16 @@ export function useSocket(boardId, username, setNotes, setShapes) {
       setShapes((prev) => prev.filter((s) => s._id !== _id));
     });
 
+    s.on("reaction", (data) => onReactionRef?.current?.(data));
+
+    s.on("board:renamed", (data) => onBoardEventRef?.current?.({ type: "renamed", ...data }));
+    s.on("board:deleted", ()     => onBoardEventRef?.current?.({ type: "deleted" }));
+
     return () => {
       s.disconnect();
       setSocket(null);
     };
   }, [boardId, username]); // eslint-disable-line
 
-  return { socket, socketRef, members };
+  return { socket, members };
 }

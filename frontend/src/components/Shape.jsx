@@ -1,12 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { getBoardScale } from "../utils/canvas";
 import "./shape.css";
-
-function getBoardScale(el) {
-  const worldEl = el.closest(".board-world");
-  if (!worldEl) return 1;
-  const matrix = new DOMMatrix(getComputedStyle(worldEl).transform);
-  return matrix.a || 1;
-}
 
 // 8 colours — hex values used as stroke and (with opacity) as fill
 const COLORS = [
@@ -18,12 +12,6 @@ const COLORS = [
   { id: "blue",   hex: "#3b82f6" },
   { id: "purple", hex: "#a855f7" },
   { id: "pink",   hex: "#ec4899" },
-];
-
-const FILL_MODES = [
-  { id: "none",  label: "No fill",    icon: "○" },
-  { id: "semi",  label: "Semi",       icon: "◐" },
-  { id: "solid", label: "Solid fill", icon: "●" },
 ];
 
 function getFill(hex, fillMode) {

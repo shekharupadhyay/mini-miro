@@ -2,11 +2,14 @@ import "dotenv/config";
 import http from "http";
 import express from "express";
 import cors from "cors";
+import session from "express-session";
+import passport from "passport";
 import { Server } from "socket.io";
 import { connectDB } from "./db.js";
 import makeNotesRouter  from "./routes/notes.js";
 import makeShapesRouter from "./routes/shapes.js";
 import roomsRouter      from "./routes/rooms.js";
+import authRouter       from "./routes/auth.js";
 
 const app = express();
 
@@ -14,13 +17,20 @@ app.use(express.json());
 app.use(
   cors({
     origin: true,
-    // [
-    //   process.env.CLIENT_ORIGIN,
-    //    "https://roni-nonhedonic-flaggingly.ngrok-free.dev"
-    // ],
     credentials: true,
   })
 );
+
+// Session needed for the OAuth handshake (not used after — auth is JWT-based)
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+app.use(passport.initialize());
+app.use(passport.session());
 
 const server = http.createServer(app);
 
@@ -94,6 +104,21 @@ io.on("connection", (socket) => {
     socket.to(currentBoard).emit("shape:deleted", data);
   });
 
+  // ── Reactions ────────────────────────────────────────────────────
+  socket.on("reaction", (data) => {
+    // Broadcast to everyone in the room INCLUDING the sender
+    io.to(currentBoard).emit("reaction", data);
+  });
+
+  // ── Board management (admin only — trust enforced by REST API) ───
+  socket.on("board:rename", ({ newName }) => {
+    io.to(currentBoard).emit("board:renamed", { newName });
+  });
+
+  socket.on("board:delete", () => {
+    io.to(currentBoard).emit("board:deleted");
+  });
+
   // ── Chat ──────────────────────────────────────────────────────────
   socket.on("chat:message", ({ text }) => {
     const msg = {
@@ -119,6 +144,7 @@ io.on("connection", (socket) => {
 });
 
 // ── REST routes ──────────────────────────────────────────────────────
+app.use("/auth", authRouter);
 app.use("/api", makeNotesRouter(io));
 app.use("/api", makeShapesRouter(io));
 app.use("/api", roomsRouter);

@@ -41,16 +41,19 @@ export default function makeNotesRouter(io) {
     res.json(updated);
   });
 
-  // PATCH update note content, color, size, text color, font
+  // PATCH update note content, color, size, position, rotation, text color, font
   router.patch("/notes/:noteId", async (req, res) => {
     const { noteId } = req.params;
-    const { text, color, w, h, textColor, fontFamily } = req.body;
+    const { text, color, x, y, w, h, rotation, textColor, fontFamily } = req.body;
 
     const update = {};
     if (text       !== undefined) update.text       = text;
     if (color      !== undefined) update.color      = color;
+    if (x          !== undefined) update.x          = x;
+    if (y          !== undefined) update.y          = y;
     if (w          !== undefined) update.w          = w;
     if (h          !== undefined) update.h          = h;
+    if (rotation   !== undefined) update.rotation   = rotation;
     if (textColor  !== undefined) update.textColor  = textColor;
     if (fontFamily !== undefined) update.fontFamily = fontFamily;
 

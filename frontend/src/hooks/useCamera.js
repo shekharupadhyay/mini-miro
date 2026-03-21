@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -47,10 +47,24 @@ export function useCamera(viewportRef) {
     });
   }
 
-  function handleWheel(e) {
-    e.preventDefault();
-    zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.1 : 0.9);
-  }
+  // Use a ref so the wheel handler always calls the latest zoomAt
+  // without needing to re-attach the listener on every render.
+  const zoomAtRef = useRef(zoomAt);
+  zoomAtRef.current = zoomAt;
+
+  // Attach wheel listener as non-passive so e.preventDefault() actually works.
+  // React 19 synthetic onWheel is passive, which lets the browser scroll the
+  // page simultaneously — that native scroll is what makes the UI chrome flicker.
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    function onWheel(e) {
+      e.preventDefault();
+      zoomAtRef.current(e.clientX, e.clientY, e.deltaY < 0 ? 1.1 : 0.9);
+    }
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []); // eslint-disable-line
 
   function handleMouseMove(e) {
     if (!panRef.current.active) return;
@@ -63,18 +77,6 @@ export function useCamera(viewportRef) {
         x: panRef.current.camStartX + dx,
         y: panRef.current.camStartY + dy,
       }));
-    }
-  }
-
-  function handleMouseUp(e, onRightClickCanvas) {
-    const { moved, button, startX, startY } = panRef.current;
-    panRef.current.active = false;
-    panRef.current.moved = false;
-    window.removeEventListener("mousemove", handleMouseMove);
-    window.removeEventListener("mouseup", (ev) => handleMouseUp(ev, onRightClickCanvas));
-
-    if (button === 2 && !moved) {
-      onRightClickCanvas(startX, startY);
     }
   }
 
@@ -109,7 +111,7 @@ export function useCamera(viewportRef) {
       };
 
       function onMove(ev) { handleMouseMove(ev); }
-      function onUp(ev) {
+      function onUp() {
         const { moved, button, startX, startY } = panRef.current;
         panRef.current.active = false;
         panRef.current.moved = false;
@@ -141,7 +143,6 @@ export function useCamera(viewportRef) {
     camera,
     setCamera,
     screenToWorld,
-    handleWheel,
     buildMouseDownHandler,
     zoomIn,
     zoomOut,

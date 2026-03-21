@@ -1,36 +1,25 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { updateNotePosition } from "../api/notesApi";
+import { useEffect, useRef, useState } from "react";
+import { getBoardScale } from "../utils/canvas";
 import "./note.css";
 
 export default function Note({
   note,
-  onUpdate,       // (id, patch) => void  — unified patch, debounced in Board
-  onPositionChange, // (id, x, y) => void — live position during drag
-  screenToWorld,
-  onOpenMenu,
+  isSelected,
   isEditing,
+  onSelect,
+  onUpdate,
+  onOpenMenu,
   onStartEdit,
   onStopEdit,
   onSaveEdit,
 }) {
-  const [dragging,  setDragging]  = useState(false);
   const [draftText, setDraftText] = useState(note.text);
-
-  const offsetRef     = useRef({ x: 0, y: 0 });
-  const latestNoteRef = useRef(note);
-  const textareaRef   = useRef(null);
-
-  const rotation = useMemo(() => {
-    const hash = note._id
-      .split("")
-      .reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    return ((hash % 7) - 3);
-  }, [note._id]);
+  const elRef       = useRef(null);
+  const textareaRef = useRef(null);
 
   useEffect(() => {
-    latestNoteRef.current = note;
-    setDraftText(note.text);
-  }, [note]);
+    if (!isEditing) setDraftText(note.text);
+  }, [note.text, isEditing]);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -51,62 +40,106 @@ export default function Note({
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
-    setDragging(true);
-    const world = screenToWorld(e.clientX, e.clientY);
-    offsetRef.current = { x: world.x - note.x, y: world.y - note.y };
-  }
+    onSelect?.(note._id);
 
-  useEffect(() => {
-    if (!dragging) return;
-
-    function onMove(e) {
-      const world = screenToWorld(e.clientX, e.clientY);
-      const newX = world.x - offsetRef.current.x;
-      const newY = world.y - offsetRef.current.y;
-      onPositionChange?.(note._id, newX, newY);
-    }
-
-    async function onUp() {
-      setDragging(false);
-      const { _id, x, y } = latestNoteRef.current;
-      await updateNotePosition(_id, x, y);
-    }
-
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [dragging, note._id, onPositionChange, screenToWorld]);
-
-  // ── Resize handle ─────────────────────────────────────────────────
-  function handleResizeMouseDown(e) {
-    e.stopPropagation();
-    e.preventDefault();
-
-    const worldEl = e.currentTarget.closest(".board-world");
-    const scale = worldEl
-      ? (new DOMMatrix(getComputedStyle(worldEl).transform).a || 1)
-      : 1;
-
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const origW  = latestNoteRef.current.w ?? 180;
-    const origH  = latestNoteRef.current.h ?? 110;
+    const scale = getBoardScale(elRef.current);
+    const startX = e.clientX, startY = e.clientY;
+    const origX = note.x, origY = note.y;
 
     function onMove(ev) {
-      const newW = Math.max(140, origW + (ev.clientX - startX) / scale);
-      const newH = Math.max(80,  origH + (ev.clientY - startY) / scale);
-      // Update local state immediately for smooth feel
-      onUpdate?.(note._id, { w: newW, h: newH });
+      onUpdate(note._id, {
+        x: origX + (ev.clientX - startX) / scale,
+        y: origY + (ev.clientY - startY) / scale,
+      });
     }
-
     function onUp() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
 
+  // ── 4-corner resize ───────────────────────────────────────────────
+  function handleResizeMouseDown(e, corner) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const scale  = getBoardScale(elRef.current);
+    const startX = e.clientX, startY = e.clientY;
+    const origW  = note.w ?? 180;
+    const origH  = note.h ?? 110;
+
+    const theta = ((note.rotation ?? 0) * Math.PI) / 180;
+    const cosT  = Math.cos(theta);
+    const sinT  = Math.sin(theta);
+
+    const origCx = note.x + origW / 2;
+    const origCy = note.y + origH / 2;
+
+    const anchors = {
+      se: { lx: -origW / 2, ly: -origH / 2 },
+      sw: { lx:  origW / 2, ly: -origH / 2 },
+      ne: { lx: -origW / 2, ly:  origH / 2 },
+      nw: { lx:  origW / 2, ly:  origH / 2 },
+    };
+    const anchor   = anchors[corner];
+    const anchorWx = origCx + anchor.lx * cosT - anchor.ly * sinT;
+    const anchorWy = origCy + anchor.lx * sinT + anchor.ly * cosT;
+
+    function onMove(ev) {
+      const sdx = (ev.clientX - startX) / scale;
+      const sdy = (ev.clientY - startY) / scale;
+
+      const localDx =  sdx * cosT + sdy * sinT;
+      const localDy = -sdx * sinT + sdy * cosT;
+
+      let newW = origW, newH = origH;
+      let localSignX = 1, localSignY = 1;
+
+      if (corner === "se") { newW = origW + localDx; newH = origH + localDy; localSignX =  1; localSignY =  1; }
+      if (corner === "sw") { newW = origW - localDx; newH = origH + localDy; localSignX = -1; localSignY =  1; }
+      if (corner === "ne") { newW = origW + localDx; newH = origH - localDy; localSignX =  1; localSignY = -1; }
+      if (corner === "nw") { newW = origW - localDx; newH = origH - localDy; localSignX = -1; localSignY = -1; }
+
+      newW = Math.max(120, newW);
+      newH = Math.max(80,  newH);
+
+      const newCx = anchorWx + (newW / 2) * localSignX * cosT - (newH / 2) * localSignY * sinT;
+      const newCy = anchorWy + (newW / 2) * localSignX * sinT + (newH / 2) * localSignY * cosT;
+
+      onUpdate(note._id, { x: newCx - newW / 2, y: newCy - newH / 2, w: newW, h: newH });
+    }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  // ── Rotate handle ─────────────────────────────────────────────────
+  function handleRotateMouseDown(e) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const el   = elRef.current;
+    const rect = el.getBoundingClientRect();
+    const cx   = rect.left + rect.width  / 2;
+    const cy   = rect.top  + rect.height / 2;
+
+    const startAngle = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
+    const startRot   = note.rotation ?? 0;
+
+    function onMove(ev) {
+      const angle = Math.atan2(ev.clientY - cy, ev.clientX - cx) * (180 / Math.PI);
+      const delta = angle - startAngle;
+      onUpdate(note._id, { rotation: (startRot + delta + 360) % 360 });
+    }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }
@@ -134,8 +167,9 @@ export default function Note({
     onStopEdit?.();
   }
 
-  const w = note.w ?? 180;
-  const h = note.h ?? 110;
+  const w        = note.w ?? 180;
+  const h        = note.h ?? 110;
+  const rotation = note.rotation ?? 0;
 
   const FONT_MAP = {
     sans:        "system-ui, sans-serif",
@@ -151,18 +185,20 @@ export default function Note({
 
   return (
     <div
-      className="note"
+      ref={elRef}
+      className={`note${isSelected ? " selected" : ""}`}
       onMouseDown={handleMouseDown}
       onContextMenu={handleContextMenu}
       onDoubleClick={handleDoubleClick}
       style={{
-        left:      note.x,
-        top:       note.y,
-        width:     w,
-        minHeight: h,
-        background: note.color,
-        transform: `rotate(${rotation}deg)`,
-        cursor: isEditing ? "text" : dragging ? "grabbing" : "grab",
+        left:            note.x,
+        top:             note.y,
+        width:           w,
+        minHeight:       h,
+        background:      note.color,
+        cursor:          isEditing ? "text" : "grab",
+        transform:       `rotate(${rotation}deg)`,
+        transformOrigin: "center center",
       }}
     >
       {isEditing ? (
@@ -184,12 +220,22 @@ export default function Note({
         <div className="note-content" style={textStyle}>{note.text}</div>
       )}
 
-      {/* Resize handle — bottom-right corner, visible on hover */}
-      <div
-        className="note-resize-handle"
-        onMouseDown={handleResizeMouseDown}
-        title="Drag to resize"
-      />
+      {/* 4-corner resize handles — only when selected */}
+      {isSelected && (
+        <>
+          <div className="note-handle nw" onMouseDown={e => handleResizeMouseDown(e, "nw")} />
+          <div className="note-handle ne" onMouseDown={e => handleResizeMouseDown(e, "ne")} />
+          <div className="note-handle sw" onMouseDown={e => handleResizeMouseDown(e, "sw")} />
+          <div className="note-handle se" onMouseDown={e => handleResizeMouseDown(e, "se")} />
+        </>
+      )}
+
+      {/* Rotate handle */}
+      {isSelected && !isEditing && (
+        <div className="note-rotate-handle" onMouseDown={handleRotateMouseDown} title="Drag to rotate">
+          ↻
+        </div>
+      )}
     </div>
   );
 }

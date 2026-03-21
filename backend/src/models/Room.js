@@ -4,6 +4,7 @@ const roomSchema = new mongoose.Schema(
   {
     name:      { type: String, required: true, unique: true, trim: true },
     adminName: { type: String, required: true, trim: true },
+    adminId:   { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );

@@ -1,327 +1,83 @@
 import { useEffect, useRef, useState } from "react";
+import ContextMenuCanvas from "./ContextMenuCanvas";
+import ContextMenuNote   from "./ContextMenuNote";
+import ContextMenuShape  from "./ContextMenuShape";
 import "./contextMenu.css";
 
-const NOTE_COLORS = [
-  { id: "#fff9c4", label: "Yellow", bg: "#fff9c4", border: "#eab308" },
-  { id: "#ffe0b2", label: "Orange", bg: "#ffe0b2", border: "#fb923c" },
-  { id: "#fce4ec", label: "Pink",   bg: "#fce4ec", border: "#ec4899" },
-  { id: "#f86262", label: "Red",    bg: "#f86262", border: "#f86262" },
-  { id: "#e8f5e9", label: "Green",  bg: "#e8f5e9", border: "#22c55e" },
-  { id: "#e3f2fd", label: "Blue",   bg: "#e3f2fd", border: "#3b82f6" },
-  { id: "#f3e5f5", label: "Purple", bg: "#f3e5f5", border: "#a855f7" },
-  { id: "#f5f5f5", label: "Gray",   bg: "#f5f5f5", border: "#9ca3af" },
-];
-
-const SHAPES = [
-  { id: "rectangle", label: "Rect",     icon: "▭" },
-  { id: "circle",    label: "Circle",   icon: "○" },
-  { id: "triangle",  label: "Triangle", icon: "△" },
-  { id: "line",      label: "Line",     icon: "╱" },
-];
-
-const SHAPE_COLORS = [
-  { id: "black",  hex: "#1a1a1a" },
-  { id: "red",    hex: "#ef4444" },
-  { id: "orange", hex: "#fb923c" },
-  { id: "yellow", hex: "#eab308" },
-  { id: "green",  hex: "#22c55e" },
-  { id: "blue",   hex: "#3b82f6" },
-  { id: "purple", hex: "#a855f7" },
-  { id: "pink",   hex: "#ec4899" },
-];
-
-const FILL_MODES = [
-  { id: "none",  label: "No fill", icon: "○" },
-  { id: "semi",  label: "Semi",    icon: "◐" },
-  { id: "solid", label: "Solid",   icon: "●" },
-];
-
-const FONTS = [
-  { id: "sans",        label: "Sans",   style: "system-ui, sans-serif" },
-  { id: "serif",       label: "Serif",  style: "Georgia, serif" },
-  { id: "mono",        label: "Mono",   style: "monospace" },
-  { id: "handwriting", label: "Hand",   style: "cursive" },
-];
-
-const TEXT_COLORS = [
-  { id: "#111318", hex: "#111318" },
-  { id: "#ef4444", hex: "#ef4444" },
-  { id: "#fb923c", hex: "#fb923c" },
-  { id: "#eab308", hex: "#eab308" },
-  { id: "#22c55e", hex: "#22c55e" },
-  { id: "#3b82f6", hex: "#3b82f6" },
-  { id: "#a855f7", hex: "#a855f7" },
-  { id: "#ec4899", hex: "#ec4899" },
-];
+// Estimated max heights per mode for viewport overflow clamping
+const MODE_HEIGHT = { canvas: 200, note: 340, shape: 400 };
 
 export default function ContextMenu({
-  open, x, y, onClose,
-  onEdit, onDelete,
-  onChangeColor,
-  onAddNote,
-  onAddShape,
-  onEditShape,
-  onDeleteShape,
-  onShapeColor,
-  onShapeFill,
+  open, x, y, onClose, mode = "note",
+  // canvas
+  onAddNote, onAddShape,
+  // note
+  onEdit, onDelete, onChangeColor,
+  // shape
+  onEditShape, onDeleteShape, onShapeColor, onShapeFill,
   currentShapeColor = "black",
   currentShapeFill  = "none",
-  // text styling — shared by notes and shapes
-  onTextColor,
-  onFontFamily,
+  // shared (note + shape)
+  onTextColor, onFontFamily,
   currentTextColor  = "#111318",
   currentFontFamily = "sans",
-  mode = "note",
 }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ x, y });
-  const [expanded, setExpanded] = useState(null);
-  const [hoveredColor, setHoveredColor] = useState(null);
 
+  // Clamp menu so it never overflows the viewport
   useEffect(() => {
-    if (!open) { setExpanded(null); setHoveredColor(null); }
-  }, [open]);
+    if (!open) return;
+    const menuWidth  = 248;
+    const menuHeight = MODE_HEIGHT[mode] ?? 120;
+    const padding    = 12;
+    let nx = x, ny = y;
+    if (x + menuWidth  > window.innerWidth  - padding) nx = window.innerWidth  - menuWidth  - padding;
+    if (y + menuHeight > window.innerHeight - padding) ny = window.innerHeight - menuHeight - padding;
+    setPos({ x: nx, y: ny });
+  }, [open, x, y, mode]);
 
+  // Close on outside click or Escape
   useEffect(() => {
     if (!open) return;
     function onDown(e) { if (ref.current && !ref.current.contains(e.target)) onClose(); }
     function onKey(e)  { if (e.key === "Escape") onClose(); }
     window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
+    window.addEventListener("keydown",   onKey);
     return () => {
       window.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keydown",   onKey);
     };
   }, [open, onClose]);
 
-  useEffect(() => {
-    if (!open) return;
-    const menuWidth = 248;
-    let menuHeight;
-    if (mode === "canvas") {
-      if (expanded === "note")  menuHeight = 144;
-      else if (expanded === "shape") menuHeight = 160;
-      else menuHeight = 80;
-    } else if (mode === "note") {
-      menuHeight = 340;
-    } else if (mode === "shape") {
-      menuHeight = 400;
-    } else {
-      menuHeight = 120;
-    }
-    const padding = 12;
-    let nextX = x, nextY = y;
-    if (x + menuWidth  > window.innerWidth  - padding) nextX = window.innerWidth  - menuWidth  - padding;
-    if (y + menuHeight > window.innerHeight - padding) nextY = window.innerHeight - menuHeight - padding;
-    setPos({ x: nextX, y: nextY });
-  }, [open, x, y, mode, expanded]);
-
   if (!open) return null;
 
-  function toggle(panel) { setExpanded(v => v === panel ? null : panel); }
+  const textProps = { onTextColor, onFontFamily, currentTextColor, currentFontFamily };
 
   return (
     <div
       ref={ref}
       className="context-menu"
       style={{ left: pos.x, top: pos.y }}
-      onMouseDown={e => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
-
-      {mode === "canvas" ? (
-        <>
-          <div className="context-menu-label">Add to board</div>
-
-          <button
-            className={`context-menu-btn${expanded === "note" ? " active" : ""}`}
-            onClick={() => toggle("note")}
-          >
-            <span>🗒️ Sticky note</span>
-            <span className={`context-menu-chevron${expanded === "note" ? " rotated" : ""}`}>›</span>
-          </button>
-
-          {expanded === "note" && (
-            <div className="context-menu-color-picker">
-              {NOTE_COLORS.map((c) => (
-                <button
-                  key={c.id}
-                  className="color-swatch"
-                  style={{
-                    background: c.bg,
-                    borderColor: hoveredColor === c.id ? c.border : "rgba(0,0,0,0.1)",
-                    boxShadow: hoveredColor === c.id ? `0 0 0 3px ${c.border}44` : "none",
-                  }}
-                  title={c.label}
-                  onMouseEnter={() => setHoveredColor(c.id)}
-                  onMouseLeave={() => setHoveredColor(null)}
-                  onClick={() => { onAddNote?.({ color: c.id }); onClose(); }}
-                />
-              ))}
-            </div>
-          )}
-
-          <button
-            className={`context-menu-btn${expanded === "shape" ? " active" : ""}`}
-            onClick={() => toggle("shape")}
-          >
-            <span>🔷 Shape</span>
-            <span className={`context-menu-chevron${expanded === "shape" ? " rotated" : ""}`}>›</span>
-          </button>
-
-          {expanded === "shape" && (
-            <div className="shape-type-picker">
-              <div className="shape-type-hint">Pick a shape — resize & add text on canvas</div>
-              <div className="shape-type-row">
-                {SHAPES.map((s) => (
-                  <button
-                    key={s.id}
-                    className="shape-type-btn"
-                    title={s.label}
-                    onClick={() => { onAddShape?.({ shape: s.id }); onClose(); }}
-                  >
-                    <span className="shape-type-icon">{s.icon}</span>
-                    <span className="shape-type-label">{s.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-
-      ) : mode === "shape" ? (
-        <>
-          <div className="context-menu-label">Shape actions</div>
-          <button className="context-menu-btn" onClick={() => { onEditShape?.(); onClose(); }}>
-            <span>✏️ Edit text</span>
-            <span className="context-menu-hint">Enter</span>
-          </button>
-
-          <div className="context-menu-label" style={{ marginTop: 4 }}>Fill</div>
-          <div className="shape-fill-row">
-            {FILL_MODES.map(fm => (
-              <button
-                key={fm.id}
-                className={`shape-fill-btn${currentShapeFill === fm.id ? " active" : ""}`}
-                title={fm.label}
-                onClick={() => onShapeFill?.(fm.id)}
-              >
-                <span className="shape-fill-icon">{fm.icon}</span>
-                <span className="shape-fill-label">{fm.label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="context-menu-label" style={{ marginTop: 4 }}>Colour</div>
-          <div className="shape-color-row">
-            {SHAPE_COLORS.map(c => (
-              <button
-                key={c.id}
-                className={`shape-color-dot${currentShapeColor === c.id ? " active" : ""}`}
-                title={c.id}
-                style={{ "--dot": c.hex }}
-                onClick={() => onShapeColor?.(c.id)}
-              />
-            ))}
-          </div>
-
-          <div className="context-menu-divider" style={{ margin: "6px 4px" }} />
-
-          {/* Text styling */}
-          <div className="context-menu-label">Text colour</div>
-          <div className="shape-color-row">
-            {TEXT_COLORS.map(c => (
-              <button
-                key={c.id}
-                className={`shape-color-dot${currentTextColor === c.id ? " active" : ""}`}
-                title={c.id}
-                style={{ "--dot": c.hex }}
-                onClick={() => onTextColor?.(c.id)}
-              />
-            ))}
-          </div>
-
-          <div className="context-menu-label" style={{ marginTop: 4 }}>Font</div>
-          <div className="font-row">
-            {FONTS.map(f => (
-              <button
-                key={f.id}
-                className={`font-btn${currentFontFamily === f.id ? " active" : ""}`}
-                style={{ fontFamily: f.style }}
-                onClick={() => onFontFamily?.(f.id)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="context-menu-divider" style={{ margin: "6px 4px" }} />
-          <button className="context-menu-btn danger" onClick={() => { onDeleteShape?.(); onClose(); }}>
-            <span>🗑 Delete shape</span>
-            <span className="context-menu-hint">Del</span>
-          </button>
-        </>
-
-      ) : (
-        <>
-          <div className="context-menu-label">Note actions</div>
-          <button className="context-menu-btn" onClick={() => { onEdit?.(); onClose(); }}>
-            <span>✏️ Edit note</span>
-            <span className="context-menu-hint">Enter</span>
-          </button>
-
-          <div className="context-menu-label" style={{ marginTop: 4 }}>Note colour</div>
-          <div className="context-menu-color-picker">
-            {NOTE_COLORS.map((c) => (
-              <button
-                key={c.id}
-                className="color-swatch"
-                style={{
-                  background: c.bg,
-                  borderColor: hoveredColor === c.id ? c.border : "rgba(0,0,0,0.1)",
-                  boxShadow: hoveredColor === c.id ? `0 0 0 3px ${c.border}44` : "none",
-                }}
-                title={c.label}
-                onMouseEnter={() => setHoveredColor(c.id)}
-                onMouseLeave={() => setHoveredColor(null)}
-                onClick={() => { onChangeColor?.({ color: c.id }); }}
-              />
-            ))}
-          </div>
-
-          {/* Text styling */}
-          <div className="context-menu-label" style={{ marginTop: 4 }}>Text colour</div>
-          <div className="shape-color-row">
-            {TEXT_COLORS.map(c => (
-              <button
-                key={c.id}
-                className={`shape-color-dot${currentTextColor === c.id ? " active" : ""}`}
-                title={c.id}
-                style={{ "--dot": c.hex }}
-                onClick={() => onTextColor?.(c.id)}
-              />
-            ))}
-          </div>
-
-          <div className="context-menu-label" style={{ marginTop: 4 }}>Font</div>
-          <div className="font-row">
-            {FONTS.map(f => (
-              <button
-                key={f.id}
-                className={`font-btn${currentFontFamily === f.id ? " active" : ""}`}
-                style={{ fontFamily: f.style }}
-                onClick={() => onFontFamily?.(f.id)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="context-menu-divider" style={{ margin: "6px 4px" }} />
-          <button className="context-menu-btn danger" onClick={() => { onDelete?.(); onClose(); }}>
-            <span>🗑 Delete note</span>
-            <span className="context-menu-hint">Del</span>
-          </button>
-        </>
+      {mode === "canvas" && (
+        <ContextMenuCanvas onAddNote={onAddNote} onAddShape={onAddShape} onClose={onClose} />
+      )}
+      {mode === "note" && (
+        <ContextMenuNote
+          onEdit={onEdit} onDelete={onDelete} onClose={onClose}
+          onChangeColor={onChangeColor}
+          {...textProps}
+        />
+      )}
+      {mode === "shape" && (
+        <ContextMenuShape
+          onEditShape={onEditShape} onDeleteShape={onDeleteShape} onClose={onClose}
+          onShapeColor={onShapeColor} onShapeFill={onShapeFill}
+          currentShapeColor={currentShapeColor} currentShapeFill={currentShapeFill}
+          {...textProps}
+        />
       )}
     </div>
   );

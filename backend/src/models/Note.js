@@ -11,6 +11,7 @@ const noteSchema = new mongoose.Schema(
     color:      { type: String, default: "yellow" },
     textColor:  { type: String, default: "#111318" },
     fontFamily: { type: String, default: "sans" },
+    rotation:   { type: Number, default: 0 },
   },
   { timestamps: true }
 );
