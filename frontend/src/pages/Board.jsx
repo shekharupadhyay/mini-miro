@@ -10,7 +10,6 @@ import { authHeaders }  from "../utils/auth";
 
 import BoardTopbar      from "../components/BoardTopbar";
 import BoardLeftToolbar from "../components/BoardLeftToolbar";
-import DeleteNoteModal  from "../components/DeleteNoteModal";
 import ContextMenu      from "../components/ContextMenu";
 import ChatPanel        from "../components/ChatPanel";
 import Note             from "../components/Note";
@@ -31,13 +30,15 @@ export default function Board() {
   // ── UI-only state ─────────────────────────────────────────────────
   const [placingTool,    setPlacingTool]    = useState(null);
   const [drawingLine,    setDrawingLine]    = useState(null); // { p1, p2 } preview while drag-drawing
+  const [draggingEndpoint, setDraggingEndpoint] = useState(false);
+  const [selBox,        setSelBox]        = useState(null); // { x1,y1,x2,y2 } screen coords
+  const [multiSelected, setMultiSelected] = useState(null); // { noteIds, shapeIds }
   const [editingNoteId,  setEditingNoteId]  = useState(null);
   const [editingShapeId, setEditingShapeId] = useState(null);
   const [selectedNoteId, setSelectedNoteId] = useState(null);
   const [selectedShapeId,setSelectedShapeId]= useState(null);
   const [chatOpen,       setChatOpen]       = useState(false);
-  const [deleteModal,    setDeleteModal]    = useState({ open: false, noteId: null });
-  const [reactions,      setReactions]      = useState([]);
+const [reactions,      setReactions]      = useState([]);
   const [menu, setMenu] = useState({
     open: false, x: 0, y: 0,
     mode: "canvas", noteId: null, shapeId: null,
@@ -118,9 +119,27 @@ export default function Board() {
     buildMouseDownHandler, zoomIn, zoomOut, resetView, panRef,
   } = useCamera(viewportRef);
 
-  // Escape cancels placing tool
+  // Stable key handler — always reads latest state via closure updated each render
+  const onKeyRef = useRef(null);
+  onKeyRef.current = (e) => {
+    if (e.key === "Escape") { setPlacingTool(null); setDrawingLine(null); setMultiSelected(null); setSelBox(null); }
+    if ((e.key === "Delete" || e.key === "Backspace") &&
+        !["INPUT","TEXTAREA"].includes(document.activeElement?.tagName) &&
+        document.activeElement?.getAttribute("contenteditable") !== "true") {
+      const group = multiSelectedRef.current;
+      if (group && (group.noteIds.length + group.shapeIds.length > 0)) {
+        group.noteIds.forEach((id) => handleDeleteNote(id));
+        group.shapeIds.forEach((id) => handleDeleteShape(id));
+        setMultiSelected(null);
+      } else if (selectedShapeId) {
+        handleDeleteShape(selectedShapeId); setSelectedShapeId(null);
+      } else if (selectedNoteId) {
+        handleDeleteNote(selectedNoteId); setSelectedNoteId(null);
+      }
+    }
+  };
   useEffect(() => {
-    function onKey(e) { if (e.key === "Escape") { setPlacingTool(null); setDrawingLine(null); } }
+    function onKey(e) { onKeyRef.current?.(e); }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
@@ -165,48 +184,260 @@ export default function Board() {
     closeMenu,
   });
 
-  // ── Line draw interceptor (must be after handleMouseDown) ─────────
+  // ── Stable refs for use inside long-lived drag callbacks ──────────
   const screenToWorldRef = useRef(screenToWorld);
   screenToWorldRef.current = screenToWorld;
   const addFlexLineRef = useRef(addFlexLine);
   addFlexLineRef.current = addFlexLine;
+  const cameraRef = useRef(camera);
+  cameraRef.current = camera;
+  const shapesRef = useRef(shapes);
+  shapesRef.current = shapes;
+  const notesRef = useRef(notes);
+  notesRef.current = notes;
+  const multiSelectedRef = useRef(null);
+  multiSelectedRef.current = multiSelected;
+
+  // ── Rotation-aware anchor position ────────────────────────────────
+  function getAnchorPos(el, side) {
+    const cx = el.x + el.w / 2;
+    const cy = el.y + el.h / 2;
+    let ax, ay;
+    if (side === "top")    { ax = cx;       ay = el.y; }
+    if (side === "bottom") { ax = cx;       ay = el.y + el.h; }
+    if (side === "left")   { ax = el.x;     ay = cy; }
+    if (side === "right")  { ax = el.x + el.w; ay = cy; }
+    const rotation = el.rotation ?? 0;
+    if (!rotation) return { x: ax, y: ay };
+    const rad = (rotation * Math.PI) / 180;
+    const cos = Math.cos(rad), sin = Math.sin(rad);
+    const dx = ax - cx, dy = ay - cy;
+    return { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos };
+  }
+
+  // ── Sync lines that are connected to a moved/resized/rotated element ──
+  function syncConnectedLines(elementId, updatedEl) {
+    shapesRef.current
+      .filter((s) => s.shape === "line" && s.points?.length >= 2 &&
+                     s.points.some((p) => p.connId === elementId))
+      .forEach((line) => {
+        const newPoints = line.points.map((p) => {
+          if (p.connId !== elementId) return p;
+          const pos = getAnchorPos(updatedEl, p.connSide);
+          return { ...p, x: Math.round(pos.x), y: Math.round(pos.y) };
+        });
+        handleShapeUpdate(line._id, { points: newPoints });
+      });
+  }
+
+  function handleNoteUpdateWithSync(id, patch) {
+    handleNoteUpdate(id, patch);
+    const note = notesRef.current.find((n) => n._id === id);
+    if (note) syncConnectedLines(id, { ...note, ...patch });
+  }
+
+  function handleShapeUpdateWithSync(id, patch) {
+    handleShapeUpdate(id, patch);
+    const shape = shapesRef.current.find((s) => s._id === id);
+    if (shape && !(shape.shape === "line" && shape.points?.length >= 2)) {
+      syncConnectedLines(id, { ...shape, ...patch });
+    }
+  }
+
+  // ── Group drag — moves all multi-selected items together ──────────
+  function handleGroupDragStart(e) {
+    e.stopPropagation();
+    const group = multiSelectedRef.current;
+    if (!group) return;
+    const scale = cameraRef.current.scale;
+    const startX = e.clientX, startY = e.clientY;
+    const origNotes  = group.noteIds.map((id) => { const n = notesRef.current.find((n) => n._id === id);  return { id, x: n?.x ?? 0, y: n?.y ?? 0 }; });
+    const origShapes = group.shapeIds.map((id) => {
+      const s = shapesRef.current.find((s) => s._id === id);
+      const isLine = s?.shape === "line" && s?.points?.length >= 2;
+      return { id, x: s?.x ?? 0, y: s?.y ?? 0, isLine, origPts: isLine ? s.points : null };
+    });
+
+    function onMove(ev) {
+      const dx = (ev.clientX - startX) / scale;
+      const dy = (ev.clientY - startY) / scale;
+      origNotes.forEach(({ id, x, y }) => handleNoteUpdateWithSync(id, { x: x + dx, y: y + dy }));
+      origShapes.forEach(({ id, x, y, isLine, origPts }) => {
+        if (isLine) handleShapeUpdate(id, { points: origPts.map((p) => ({ ...p, x: p.x + dx, y: p.y + dy })) });
+        else handleShapeUpdateWithSync(id, { x: x + dx, y: y + dy });
+      });
+    }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  // Always points to the latest snap-anchor finder (captures current notes/shapes)
+  const findNearestAnchorRef = useRef(null);
+  findNearestAnchorRef.current = (worldX, worldY, threshold) => {
+    const SIDES = ["top", "bottom", "left", "right"];
+    const candidates = [
+      ...notes.flatMap((n) =>
+        SIDES.map((side) => ({ ...getAnchorPos(n, side), connId: n._id, connType: "note", connSide: side }))
+      ),
+      ...shapes.filter((s) => !(s.shape === "line" && s.points?.length >= 2)).flatMap((s) =>
+        SIDES.map((side) => ({ ...getAnchorPos(s, side), connId: s._id, connType: "shape", connSide: side }))
+      ),
+    ];
+    let best = null, bestDist = threshold;
+    for (const a of candidates) {
+      const d = Math.hypot(a.x - worldX, a.y - worldY);
+      if (d < bestDist) { best = a; bestDist = d; }
+    }
+    return best;
+  };
+
+  // ── Shared line-draw drag setup ────────────────────────────────────
+  function beginLineDraw(p1, p1Screen) {
+    const rect = viewportRef.current.getBoundingClientRect();
+    setDrawingLine({ p1: p1Screen, p2: p1Screen });
+
+    const onMove = (ev) => {
+      const w = screenToWorldRef.current(ev.clientX, ev.clientY);
+      const { scale, x: cx, y: cy } = cameraRef.current;
+      const snapped = findNearestAnchorRef.current(w.x, w.y, 25 / scale);
+      const p2Screen = snapped
+        ? { x: snapped.x * scale + cx, y: snapped.y * scale + cy }
+        : { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
+      setDrawingLine({ p1: p1Screen, p2: p2Screen });
+    };
+    const onUp = async (ev) => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      const w = screenToWorldRef.current(ev.clientX, ev.clientY);
+      const { scale } = cameraRef.current;
+      const snapped = findNearestAnchorRef.current(w.x, w.y, 25 / scale);
+      const p2 = snapped
+        ? { x: Math.round(snapped.x), y: Math.round(snapped.y), connId: snapped.connId, connType: snapped.connType, connSide: snapped.connSide }
+        : { x: Math.round(w.x), y: Math.round(w.y) };
+      setDrawingLine(null);
+      setPlacingTool(null);
+      if (Math.hypot(p2.x - p1.x, p2.y - p1.y) > 5) {
+        try {
+          const newId = await addFlexLineRef.current(p1, p2);
+          setSelectedShapeId(newId);
+        } catch (err) {
+          console.error("addFlexLine failed:", err);
+        }
+      }
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  // Stable ref so endpoint drag callbacks always call the latest handleShapeUpdate
+  const handleShapeUpdateRef = useRef(handleShapeUpdate);
+  handleShapeUpdateRef.current = handleShapeUpdate;
+
+  // Drag a flex-line endpoint with snap-to-anchor support
+  function handleFlexEndpointDrag(shapeId, idx, e) {
+    e.stopPropagation();
+    e.preventDefault();
+    setDraggingEndpoint(true);
+
+    let lastSnapped = null; // track last anchor we snapped to during drag
+
+    function makePoint(ev) {
+      const pts = shapesRef.current.find((s) => s._id === shapeId)?.points ?? [];
+      const w = screenToWorldRef.current(ev.clientX, ev.clientY);
+      const { scale } = cameraRef.current;
+      const snapped = findNearestAnchorRef.current(w.x, w.y, 30 / scale)
+        ?? (lastSnapped && Math.hypot(w.x - lastSnapped.x, w.y - lastSnapped.y) < 50 / scale ? lastSnapped : null);
+      const newPt = snapped
+        ? { x: Math.round(snapped.x), y: Math.round(snapped.y), connId: snapped.connId, connType: snapped.connType, connSide: snapped.connSide }
+        : { x: Math.round(w.x), y: Math.round(w.y) };
+      return { pts, newPt, snapped };
+    }
+
+    function onMove(ev) {
+      const { pts, newPt, snapped } = makePoint(ev);
+      lastSnapped = snapped ?? null;
+      handleShapeUpdateRef.current(shapeId, { points: pts.map((p, i) => (i === idx ? newPt : p)) });
+    }
+    function onUp(ev) {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      setDraggingEndpoint(false);
+      const { pts, newPt } = makePoint(ev);
+      handleShapeUpdateRef.current(shapeId, { points: pts.map((p, i) => (i === idx ? newPt : p)) });
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  // Called when user drags from an anchor dot on a shape/note
+  function startLineFromAnchor(worldX, worldY, connId, connType, connSide) {
+    const { scale, x: cx, y: cy } = camera;
+    const p1 = { x: Math.round(worldX), y: Math.round(worldY), connId, connType, connSide };
+    const p1Screen = { x: worldX * scale + cx, y: worldY * scale + cy };
+    beginLineDraw(p1, p1Screen);
+  }
 
   const handleViewportMouseDown = (e) => {
     if (placingTool === "shape:line" && e.button === 0) {
       e.preventDefault();
       e.stopPropagation();
-      // Store viewport-relative screen coords for the preview SVG
       const rect = viewportRef.current.getBoundingClientRect();
-      const p1Screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      // Store world coords for final shape creation
       const p1World = screenToWorldRef.current(e.clientX, e.clientY);
       const p1 = { x: Math.round(p1World.x), y: Math.round(p1World.y) };
+      const p1Screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      beginLineDraw(p1, p1Screen);
+      return;
+    }
 
-      setDrawingLine({ p1: p1Screen, p2: p1Screen });
+    // Left click on empty canvas — selection box or deselect
+    if (e.button === 0 && !placingTool) {
+      closeMenu();
+      const rect = viewportRef.current.getBoundingClientRect();
+      const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+      let dragging = false;
 
-      const onMove = (ev) => {
-        setDrawingLine({ p1: p1Screen, p2: { x: ev.clientX - rect.left, y: ev.clientY - rect.top } });
-      };
-      const onUp = async (ev) => {
+      function onMove(ev) {
+        const ex = ev.clientX - rect.left, ey = ev.clientY - rect.top;
+        if (!dragging && (Math.abs(ex - sx) > 5 || Math.abs(ey - sy) > 5)) dragging = true;
+        if (dragging) setSelBox({ x1: sx, y1: sy, x2: ex, y2: ey });
+      }
+      function onUp(ev) {
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
-        setDrawingLine(null);
-        setPlacingTool(null);
-        const p2World = screenToWorldRef.current(ev.clientX, ev.clientY);
-        const p2 = { x: Math.round(p2World.x), y: Math.round(p2World.y) };
-        if (Math.hypot(p2.x - p1.x, p2.y - p1.y) > 5) {
-          try {
-            const newId = await addFlexLineRef.current(p1, p2);
-            setSelectedShapeId(newId);
-          } catch (err) {
-            console.error("addFlexLine failed:", err);
+        if (dragging) {
+          const ex = ev.clientX - rect.left, ey = ev.clientY - rect.top;
+          const { scale, x: cx, y: cy } = cameraRef.current;
+          const wx1 = (Math.min(sx, ex) - cx) / scale, wy1 = (Math.min(sy, ey) - cy) / scale;
+          const wx2 = (Math.max(sx, ex) - cx) / scale, wy2 = (Math.max(sy, ey) - cy) / scale;
+          const selNoteIds  = notesRef.current.filter((n) => n.x < wx2 && n.x + n.w > wx1 && n.y < wy2 && n.y + n.h > wy1).map((n) => n._id);
+          const selShapeIds = shapesRef.current.filter((s) => {
+            if (s.shape === "line" && s.points?.length >= 2) {
+              const lx1 = Math.min(...s.points.map((p) => p.x)), lx2 = Math.max(...s.points.map((p) => p.x));
+              const ly1 = Math.min(...s.points.map((p) => p.y)), ly2 = Math.max(...s.points.map((p) => p.y));
+              return lx1 < wx2 && lx2 > wx1 && ly1 < wy2 && ly2 > wy1;
+            }
+            return s.x < wx2 && s.x + s.w > wx1 && s.y < wy2 && s.y + s.h > wy1;
+          }).map((s) => s._id);
+          setSelBox(null);
+          if (selNoteIds.length + selShapeIds.length > 0) {
+            setMultiSelected({ noteIds: selNoteIds, shapeIds: selShapeIds });
+            setSelectedNoteId(null); setSelectedShapeId(null);
+          } else {
+            setMultiSelected(null); setSelectedNoteId(null); setSelectedShapeId(null);
           }
+        } else {
+          setMultiSelected(null); setSelectedNoteId(null); setSelectedShapeId(null);
         }
-      };
+      }
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
       return;
     }
+
     handleMouseDown(e);
   };
 
@@ -268,39 +499,143 @@ export default function Board() {
               transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.scale})`,
             }}
           >
-            {notes.map((n) => (
-              <Note
-                key={n._id}
-                note={n}
-                isSelected={selectedNoteId === n._id}
-                isEditing={editingNoteId === n._id}
-                onSelect={(id) => setSelectedNoteId(id)}
-                onOpenMenu={openNoteMenu}
-                onUpdate={handleNoteUpdate}
-                onStartEdit={() => setEditingNoteId(n._id)}
-                onStopEdit={() => setEditingNoteId(null)}
-                onSaveEdit={async (noteId, text) => {
-                  await handleSaveNoteText(noteId, text);
-                  setEditingNoteId(null);
-                }}
-              />
-            ))}
+            {notes.map((n) => {
+              const inGroup = !!multiSelected?.noteIds.includes(n._id);
+              return (
+                <Note
+                  key={n._id}
+                  note={n}
+                  isSelected={selectedNoteId === n._id || inGroup}
+                  isGroupSelected={inGroup}
+                  isEditing={editingNoteId === n._id}
+                  onSelect={(id) => { if (inGroup) return; setMultiSelected(null); setSelectedNoteId(id); }}
+                  onOpenMenu={openNoteMenu}
+                  onUpdate={handleNoteUpdateWithSync}
+                  onGroupDragStart={inGroup ? handleGroupDragStart : undefined}
+                  onStartEdit={() => setEditingNoteId(n._id)}
+                  onStopEdit={() => setEditingNoteId(null)}
+                  onSaveEdit={async (noteId, text) => {
+                    await handleSaveNoteText(noteId, text);
+                    setEditingNoteId(null);
+                  }}
+                />
+              );
+            })}
 
-            {shapes.map((s) => (
-              <Shape
-                key={s._id}
-                shape={s}
-                isSelected={selectedShapeId === s._id}
-                isEditing={editingShapeId === s._id}
-                onSelect={(id) => setSelectedShapeId(id)}
-                onDeselect={() => setSelectedShapeId(null)}
-                onUpdate={handleShapeUpdate}
-                onOpenMenu={openShapeMenu}
-                onStopEdit={() => setEditingShapeId(null)}
-              />
-            ))}
+            {shapes.map((s) => {
+              const inGroup = !!multiSelected?.shapeIds.includes(s._id);
+              return (
+                <Shape
+                  key={s._id}
+                  shape={s}
+                  isSelected={selectedShapeId === s._id || inGroup}
+                  isGroupSelected={inGroup}
+                  isEditing={editingShapeId === s._id}
+                  onSelect={(id) => { if (inGroup) return; setMultiSelected(null); setSelectedShapeId(id); }}
+                  onDeselect={() => setSelectedShapeId(null)}
+                  onUpdate={handleShapeUpdateWithSync}
+                  onGroupDragStart={inGroup ? handleGroupDragStart : undefined}
+                  onOpenMenu={openShapeMenu}
+                  onStopEdit={() => setEditingShapeId(null)}
+                  onEndpointDrag={(e, idx) => handleFlexEndpointDrag(s._id, idx, e)}
+                />
+              );
+            })}
+
+            {/* ── Anchors on selected element (or all elements when a line is selected) ── */}
+            {(() => {
+              const selNote  = selectedNoteId  ? notes.find((n) => n._id === selectedNoteId)  : null;
+              const selShape = selectedShapeId ? shapes.find((s) => s._id === selectedShapeId) : null;
+              const selectedLineActive = selShape && selShape.shape === "line" && selShape.points?.length >= 2;
+
+              // Show clickable anchors on every shape/note only while dragging a line endpoint
+              if (selectedLineActive && draggingEndpoint) {
+                const allEls = [
+                  ...notes.map((n) => ({ el: n, connType: "note" })),
+                  ...shapes.filter((s) => !(s.shape === "line" && s.points?.length >= 2)).map((s) => ({ el: s, connType: "shape" })),
+                ];
+                return allEls.flatMap(({ el, connType }) =>
+                  ["top", "bottom", "left", "right"].map((side) => {
+                    const pos = getAnchorPos(el, side);
+                    return (
+                      <div key={`anchor-${el._id}-${side}`} className="connect-anchor"
+                        style={{ left: pos.x, top: pos.y }}
+                        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); startLineFromAnchor(pos.x, pos.y, el._id, connType, side); }}
+                      />
+                    );
+                  })
+                );
+              }
+
+              // Otherwise show anchors only on the selected element
+              const rawEl = selNote ?? (selShape ?? null);
+              if (!rawEl) return null;
+              const connType = selNote ? "note" : "shape";
+              return ["top", "bottom", "left", "right"].map((side) => {
+                const pos = getAnchorPos(rawEl, side);
+                return (
+                  <div key={`anchor-${rawEl._id}-${side}`} className="connect-anchor"
+                    style={{ left: pos.x, top: pos.y }}
+                    onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); startLineFromAnchor(pos.x, pos.y, rawEl._id, connType, side); }}
+                  />
+                );
+              });
+            })()}
+
+            {/* ── Snap-target anchors on all other elements while drawing ── */}
+            {drawingLine && <>
+              {notes.filter((n) => n._id !== selectedNoteId).flatMap((n) =>
+                ["top", "bottom", "left", "right"].map((side) => {
+                  const pos = getAnchorPos(n, side);
+                  return <div key={`tn-${n._id}-${side}`} className="connect-anchor connect-anchor--target" style={{ left: pos.x, top: pos.y }} />;
+                })
+              )}
+              {shapes.filter((s) => !(s.shape === "line" && s.points?.length >= 2) && s._id !== selectedShapeId).flatMap((s) =>
+                ["top", "bottom", "left", "right"].map((side) => {
+                  const pos = getAnchorPos(s, side);
+                  return <div key={`ts-${s._id}-${side}`} className="connect-anchor connect-anchor--target" style={{ left: pos.x, top: pos.y }} />;
+                })
+              )}
+            </>}
 
           </div>
+
+          {/* ── Selection box (viewport-level, screen coords) ── */}
+          {selBox && (
+            <div style={{
+              position: "absolute", pointerEvents: "none", zIndex: 40,
+              left: Math.min(selBox.x1, selBox.x2), top: Math.min(selBox.y1, selBox.y2),
+              width: Math.abs(selBox.x2 - selBox.x1), height: Math.abs(selBox.y2 - selBox.y1),
+              border: "1.5px dashed #3b82f6", background: "rgba(59,130,246,0.06)",
+            }} />
+          )}
+
+          {/* ── Multi-select toolbar ── */}
+          {multiSelected && (multiSelected.noteIds.length + multiSelected.shapeIds.length > 0) && (
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 60,
+                        display: "flex", alignItems: "center", gap: 8,
+                        background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8,
+                        padding: "5px 10px", boxShadow: "0 2px 8px rgba(0,0,0,0.12)", pointerEvents: "all" }}>
+              <span style={{ fontSize: 13, color: "#555" }}>
+                {multiSelected.noteIds.length + multiSelected.shapeIds.length} selected
+              </span>
+              <button
+                style={{ fontSize: 13, padding: "3px 10px", borderRadius: 6, border: "1px solid #fca5a5",
+                         background: "#fee2e2", color: "#dc2626", cursor: "pointer" }}
+                onClick={() => {
+                  const group = multiSelectedRef.current;
+                  if (!group) return;
+                  group.noteIds.forEach((id) => handleDeleteNote(id));
+                  group.shapeIds.forEach((id) => handleDeleteShape(id));
+                  setMultiSelected(null);
+                }}
+              >
+                🗑 Delete
+              </button>
+            </div>
+          )}
 
           {/* ── Line draw preview (viewport-level, screen coords) ── */}
           {drawingLine && (
@@ -350,7 +685,7 @@ export default function Board() {
           onAddNote={({ color } = {}) => addNoteAt(menu.worldX - 90, menu.worldY - 20, color)}
           onAddShape={({ shape }) => addShapeAt(menu.worldX - 60, menu.worldY - 60, { shape })}
           onEdit={() => { setEditingNoteId(menu.noteId); closeMenu(); }}
-          onDelete={() => { setDeleteModal({ open: true, noteId: menu.noteId }); closeMenu(); }}
+          onDelete={async () => { await handleDeleteNote(menu.noteId); setSelectedNoteId(null); closeMenu(); }}
           onChangeColor={({ color }) => handleNoteUpdate(menu.noteId, { color })}
           onEditShape={() => { setEditingShapeId(menu.shapeId); closeMenu(); }}
           onDeleteShape={async () => {
@@ -380,16 +715,7 @@ export default function Board() {
           currentLineStyle={menuShape?.lineStyle ?? "solid"}
         />
 
-        <DeleteNoteModal
-          open={deleteModal.open}
-          onClose={() => setDeleteModal({ open: false, noteId: null })}
-          onConfirm={async () => {
-            await handleDeleteNote(deleteModal.noteId);
-            setDeleteModal({ open: false, noteId: null });
-          }}
-        />
-
-        <ChatPanel
+<ChatPanel
           socket={socket}
           username={username}
           isOpen={chatOpen}

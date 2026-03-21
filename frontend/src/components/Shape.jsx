@@ -23,7 +23,7 @@ function getFill(hex, fillMode) {
 // ── Flexible polyline ─────────────────────────────────────────────────
 const FL_PAD = 24; // padding around the bounding box
 
-function FlexLine({ shape: shapeData, isSelected, onSelect, onUpdate, onOpenMenu }) {
+function FlexLine({ shape: shapeData, isSelected, isGroupSelected, onSelect, onUpdate, onOpenMenu, onEndpointDrag, onGroupDragStart }) {
   const { _id, color = "black", points: pts,
           lineType = "straight", lineStyle = "solid" } = shapeData;
   const elRef = useRef(null);
@@ -106,15 +106,16 @@ function FlexLine({ shape: shapeData, isSelected, onSelect, onUpdate, onOpenMenu
   function handlePolylineMouseDown(e) {
     if (e.button !== 0) return;
     e.stopPropagation();
+    if (isGroupSelected && onGroupDragStart) { onGroupDragStart(e); return; }
     onSelect(_id);
     const scale = getBoardScale(elRef.current);
     const startX = e.clientX, startY = e.clientY;
-    const origPts = pts.map(p => ({ x: p.x, y: p.y }));
+    const origPts = pts.map(p => ({ ...p })); // preserve connId/connType/connSide
 
     function onMove(ev) {
       const dx = (ev.clientX - startX) / scale;
       const dy = (ev.clientY - startY) / scale;
-      onUpdate(_id, { points: origPts.map(p => ({ x: p.x + dx, y: p.y + dy })) });
+      onUpdate(_id, { points: origPts.map(p => ({ ...p, x: p.x + dx, y: p.y + dy })) });
     }
     function onUp() {
       window.removeEventListener("mousemove", onMove);
@@ -135,7 +136,7 @@ function FlexLine({ shape: shapeData, isSelected, onSelect, onUpdate, onOpenMenu
       const dx = (ev.clientX - startX) / scale;
       const dy = (ev.clientY - startY) / scale;
       onUpdate(_id, {
-        points: pts.map((p, i) => i === idx ? { x: origPt.x + dx, y: origPt.y + dy } : { x: p.x, y: p.y }),
+        points: pts.map((p, i) => i === idx ? { x: origPt.x + dx, y: origPt.y + dy } : p),
       });
     }
     function onUp() {
@@ -153,9 +154,9 @@ function FlexLine({ shape: shapeData, isSelected, onSelect, onUpdate, onOpenMenu
     const startX = e.clientX, startY = e.clientY;
     const newIdx = segIdx + 1;
     const basePts = [
-      ...pts.slice(0, segIdx + 1).map(p => ({ x: p.x, y: p.y })),
-      { x: wx, y: wy },
-      ...pts.slice(segIdx + 1).map(p => ({ x: p.x, y: p.y })),
+      ...pts.slice(0, segIdx + 1),         // preserve all fields inc. connId
+      { x: wx, y: wy },                    // new bend point — no connection
+      ...pts.slice(segIdx + 1),            // preserve all fields inc. connId
     ];
     onUpdate(_id, { points: basePts });
 
@@ -210,6 +211,12 @@ function FlexLine({ shape: shapeData, isSelected, onSelect, onUpdate, onOpenMenu
             }}
           />
         )}
+        {/* Group-selected glow */}
+        {isGroupSelected && (lineType === "curved" ? (
+          <path d={curvedPathStr} fill="none" stroke="#3b82f6" strokeWidth="7" strokeLinecap="round" opacity="0.35" style={{ pointerEvents: "none" }} />
+        ) : (
+          <polyline points={activePolyStr} fill="none" stroke="#3b82f6" strokeWidth="7" strokeLinecap="round" opacity="0.35" style={{ pointerEvents: "none" }} />
+        ))}
         {/* Visible line */}
         {lineType === "curved" ? (
           <path
@@ -229,18 +236,24 @@ function FlexLine({ shape: shapeData, isSelected, onSelect, onUpdate, onOpenMenu
             style={{ pointerEvents: "none" }}
           />
         )}
-        {/* Corner handles ○ — only when selected */}
-        {isSelected && pts.map((p, i) => (
-          <circle
-            key={`c${i}`}
-            cx={lx(p)} cy={ly(p)} r={5}
-            fill="white" stroke="#3b82f6" strokeWidth="2"
-            style={{ pointerEvents: "all", cursor: "move" }}
-            onMouseDown={(e) => handleCornerDrag(e, i)}
-          />
-        ))}
-        {/* Midpoint handles ● — only when selected */}
-        {isSelected && midpoints.map((m) => (
+        {/* Corner handles ○ — only when single-selected */}
+        {isSelected && !isGroupSelected && pts.map((p, i) => {
+          const isEndpoint = i === 0 || i === pts.length - 1;
+          return (
+            <circle
+              key={`c${i}`}
+              cx={lx(p)} cy={ly(p)} r={isEndpoint ? 6 : 5}
+              fill="white" stroke="#3b82f6" strokeWidth="2"
+              style={{ pointerEvents: "all", cursor: isEndpoint ? "crosshair" : "move" }}
+              onMouseDown={(e) => {
+                if (isEndpoint && onEndpointDrag) onEndpointDrag(e, i);
+                else handleCornerDrag(e, i);
+              }}
+            />
+          );
+        })}
+        {/* Midpoint handles ● — only when single-selected */}
+        {isSelected && !isGroupSelected && midpoints.map((m) => (
           <circle
             key={`m${m.segIdx}`}
             cx={m.lx} cy={m.ly} r={4}
@@ -258,11 +271,13 @@ function FlexLine({ shape: shapeData, isSelected, onSelect, onUpdate, onOpenMenu
 function RegularShape({
   shape: shapeData,
   isSelected,
+  isGroupSelected,
   isEditing,
   onSelect,
   onUpdate,
   onOpenMenu,
   onStopEdit,
+  onGroupDragStart,
 }) {
   const { _id, shape, x, y, w, h, text, color = "black", fillMode = "none",
           textColor = null, fontFamily = "sans", rotation = 0 } = shapeData;
@@ -311,6 +326,7 @@ function RegularShape({
   function handleBodyMouseDown(e) {
     if (e.button !== 0 || editing) return;
     e.stopPropagation();
+    if (isGroupSelected && onGroupDragStart) { onGroupDragStart(e); return; }
     onSelect(_id);
 
     const scale = getBoardScale(elRef.current);
@@ -460,7 +476,7 @@ function RegularShape({
   return (
     <div
       ref={elRef}
-      className={`shape-card${isSelected ? " selected" : ""}`}
+      className={`shape-card${isSelected ? " selected" : ""}${isGroupSelected && !isSelected ? " group-selected" : ""}`}
       style={{
         left: x, top: y, width: svgW, height: containerH,
         transform: `rotate(${rotation}deg)`,
@@ -508,7 +524,7 @@ function RegularShape({
         </div>
       )}
 
-      {isSelected && !isLine && (
+      {isSelected && !isGroupSelected && !isLine && (
         <>
           <div className="shape-handle nw" onMouseDown={e => handleResizeMouseDown(e, "nw")} />
           <div className="shape-handle ne" onMouseDown={e => handleResizeMouseDown(e, "ne")} />
@@ -516,17 +532,17 @@ function RegularShape({
           <div className="shape-handle se" onMouseDown={e => handleResizeMouseDown(e, "se")} />
         </>
       )}
-      {isSelected && isLine && (
+      {isSelected && !isGroupSelected && isLine && (
         <>
           <div className="shape-handle line-w" onMouseDown={e => handleResizeMouseDown(e, "sw")} />
           <div className="shape-handle line-e" onMouseDown={e => handleResizeMouseDown(e, "se")} />
         </>
       )}
 
-      {isSelected && !editing && (
+      {isSelected && !isGroupSelected && !editing && (
         <div className="shape-rotate-handle" onMouseDown={handleRotateMouseDown} title="Drag to rotate">↻</div>
       )}
-      {isSelected && !editing && (
+      {isSelected && !isGroupSelected && !editing && (
         <div className="shape-hint">
           {isLine ? "Double-click to add label" : "Double-click to edit text"}
         </div>
@@ -536,10 +552,10 @@ function RegularShape({
 }
 
 // ── Public export — picks the right renderer ──────────────────────────
-export default function Shape(props) {
+export default function Shape({ onEndpointDrag, isGroupSelected, onGroupDragStart, ...props }) {
   const { shape: shapeData } = props;
   if (shapeData.shape === "line" && shapeData.points?.length >= 2) {
-    return <FlexLine {...props} />;
+    return <FlexLine {...props} onEndpointDrag={onEndpointDrag} isGroupSelected={isGroupSelected} onGroupDragStart={onGroupDragStart} />;
   }
-  return <RegularShape {...props} />;
+  return <RegularShape {...props} isGroupSelected={isGroupSelected} onGroupDragStart={onGroupDragStart} />;
 }

@@ -5,6 +5,7 @@ import "./note.css";
 export default function Note({
   note,
   isSelected,
+  isGroupSelected,
   isEditing,
   onSelect,
   onUpdate,
@@ -12,6 +13,7 @@ export default function Note({
   onStartEdit,
   onStopEdit,
   onSaveEdit,
+  onGroupDragStart,
 }) {
   const [draftText, setDraftText] = useState(note.text);
   const elRef       = useRef(null);
@@ -40,6 +42,7 @@ export default function Note({
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
+    if (isGroupSelected && onGroupDragStart) { onGroupDragStart(e); return; }
     onSelect?.(note._id);
 
     const scale = getBoardScale(elRef.current);
@@ -186,7 +189,7 @@ export default function Note({
   return (
     <div
       ref={elRef}
-      className={`note${isSelected ? " selected" : ""}`}
+      className={`note${isSelected ? " selected" : ""}${isGroupSelected && !isSelected ? " group-selected" : ""}`}
       onMouseDown={handleMouseDown}
       onContextMenu={handleContextMenu}
       onDoubleClick={handleDoubleClick}
@@ -220,8 +223,8 @@ export default function Note({
         <div className="note-content" style={textStyle}>{note.text}</div>
       )}
 
-      {/* 4-corner resize handles — only when selected */}
-      {isSelected && (
+      {/* 4-corner resize handles — only when single-selected */}
+      {isSelected && !isGroupSelected && (
         <>
           <div className="note-handle nw" onMouseDown={e => handleResizeMouseDown(e, "nw")} />
           <div className="note-handle ne" onMouseDown={e => handleResizeMouseDown(e, "ne")} />
@@ -231,7 +234,7 @@ export default function Note({
       )}
 
       {/* Rotate handle */}
-      {isSelected && !isEditing && (
+      {isSelected && !isGroupSelected && !isEditing && (
         <div className="note-rotate-handle" onMouseDown={handleRotateMouseDown} title="Drag to rotate">
           ↻
         </div>

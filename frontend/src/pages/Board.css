@@ -755,6 +755,34 @@
 .note-card.gray    { background: #eceff1; color: #263238; }
 .note-card.gray::before    { background: #78909c; }
 
+/* ─── Connection Anchors ─────────────────────────────────────────── */
+.connect-anchor {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1.5px #3b82f6;
+  cursor: crosshair;
+  z-index: 200;
+  transform: translate(-50%, -50%);
+  transition: transform 0.1s, box-shadow 0.1s;
+  pointer-events: all;
+}
+.connect-anchor:hover {
+  transform: translate(-50%, -50%) scale(1.7);
+  box-shadow: 0 0 0 2.5px #3b82f6;
+}
+.connect-anchor--target {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.connect-anchor--target:hover {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.4);
+}
+
 /* ─── Scrollbars ─────────────────────────────────────────────────── */
 ::-webkit-scrollbar        { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track  { background: transparent; }

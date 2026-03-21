@@ -8,6 +8,16 @@
   cursor: grabbing;
 }
 
+.shape-card.selected {
+  outline: 2px solid #4f7dff;
+  outline-offset: 2px;
+}
+
+.shape-card.group-selected {
+  outline: 1.5px dashed #3b82f6;
+  outline-offset: 2px;
+}
+
 .shape-svg {
   display: block;
   overflow: visible;
