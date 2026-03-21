@@ -40,6 +40,27 @@ export const FONTS = [
   { id: "handwriting", label: "Hand",  style: "cursive" },
 ];
 
+export const FONT_SIZES = [
+  { id: "sm", label: "S"  },
+  { id: "md", label: "M"  },
+  { id: "lg", label: "L"  },
+  { id: "xl", label: "XL" },
+];
+
+export const TEXT_ALIGNS = [
+  { id: "left",   title: "Align left"   },
+  { id: "center", title: "Align center" },
+  { id: "right",  title: "Align right"  },
+];
+
+export const VERT_ALIGNS = [
+  { id: "top",    title: "Align top"    },
+  { id: "center", title: "Align middle" },
+  { id: "bottom", title: "Align bottom" },
+];
+
+export const STROKE_WIDTHS = [1, 2, 3, 5];
+
 export const TEXT_COLORS = [
   { id: "#111318", hex: "#111318" },
   { id: "#ef4444", hex: "#ef4444" },

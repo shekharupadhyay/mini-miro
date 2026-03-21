@@ -12,8 +12,12 @@ const shapeSchema = new mongoose.Schema(
     color:      { type: String, default: "black" },
     fillMode:   { type: String, default: "none" },
     textColor:  { type: String, default: null },
-    fontFamily: { type: String, default: "sans" },
-    rotation:   { type: Number, default: 0 },
+    fontFamily:    { type: String, default: "sans" },
+    fontSize:      { type: String, default: "md" },
+    textAlign:     { type: String, default: "center" },
+    verticalAlign: { type: String, default: "center" },
+    strokeWidth:   { type: Number, default: 2 },
+    rotation:      { type: Number, default: 0 },
     points:     { type: [{ x: Number, y: Number, connId: String, connType: String, connSide: String }], default: undefined },
     lineType:   { type: String, default: "straight" }, // "straight" | "step" | "curved"
     lineStyle:  { type: String, default: "solid" },    // "solid" | "dashed" | "dotted"

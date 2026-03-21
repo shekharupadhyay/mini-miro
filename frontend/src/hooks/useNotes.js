@@ -7,7 +7,8 @@ import { fetchNotes, createNote, updateNote, deleteNote } from "../api/notesApi"
  */
 export function useNotes(boardId, socketRef) {
   const [notes, setNotes] = useState([]);
-  const updateTimerRef = useRef({});
+  const updateTimerRef  = useRef({});
+  const pendingPatchRef = useRef({});
 
   useEffect(() => {
     fetchNotes(boardId).then(setNotes);
@@ -20,9 +21,12 @@ export function useNotes(boardId, socketRef) {
       );
       socketRef.current?.emit("note:updated", { _id: id, ...patch });
 
+      pendingPatchRef.current[id] = { ...pendingPatchRef.current[id], ...patch };
       clearTimeout(updateTimerRef.current[id]);
       updateTimerRef.current[id] = setTimeout(() => {
-        updateNote(id, patch).catch(console.error);
+        const accumulated = pendingPatchRef.current[id];
+        delete pendingPatchRef.current[id];
+        updateNote(id, accumulated).catch(console.error);
       }, 300);
     },
     [socketRef]

@@ -1,13 +1,31 @@
-import { SHAPE_COLORS, FILL_MODES, TEXT_COLORS, FONTS } from "./contextMenuData";
+import { SHAPE_COLORS, FILL_MODES, TEXT_COLORS, FONTS, FONT_SIZES, TEXT_ALIGNS, VERT_ALIGNS, STROKE_WIDTHS } from "./contextMenuData";
+
+const H_ICONS = {
+  left:   <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="3" width="12" height="2" rx="1"/><rect x="2" y="7" width="8"  height="2" rx="1"/><rect x="2" y="11" width="10" height="2" rx="1"/></svg>,
+  center: <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="3" width="12" height="2" rx="1"/><rect x="4" y="7" width="8"  height="2" rx="1"/><rect x="3" y="11" width="10" height="2" rx="1"/></svg>,
+  right:  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="3" width="12" height="2" rx="1"/><rect x="6" y="7" width="8"  height="2" rx="1"/><rect x="4" y="11" width="10" height="2" rx="1"/></svg>,
+};
+const V_ICONS = {
+  top:    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="2" width="12" height="2" rx="1"/><rect x="5" y="5" width="6"  height="8" rx="1" opacity="0.35"/><rect x="4" y="5" width="8"  height="2" rx="1"/></svg>,
+  center: <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="7" width="12" height="2" rx="1"/><rect x="5" y="3" width="6"  height="10" rx="1" opacity="0.35"/><rect x="4" y="7" width="8"  height="2" rx="1"/></svg>,
+  bottom: <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="12" width="12" height="2" rx="1"/><rect x="5" y="3" width="6"  height="8" rx="1" opacity="0.35"/><rect x="4" y="9" width="8"  height="2" rx="1"/></svg>,
+};
+
+const FONT_SIZE_PX = { sm: 11, md: 14, lg: 17, xl: 21 };
 
 export default function ContextMenuShape({
   onEditShape, onDeleteShape, onClose,
   onShapeColor, onShapeFill,
   onTextColor, onFontFamily,
-  currentShapeColor = "black",
-  currentShapeFill  = "none",
-  currentTextColor  = "#111318",
-  currentFontFamily = "sans",
+  onFontSize, onTextAlign, onVerticalAlign, onStrokeWidth,
+  currentShapeColor    = "black",
+  currentShapeFill     = "none",
+  currentTextColor     = "#111318",
+  currentFontFamily    = "sans",
+  currentFontSize      = "md",
+  currentTextAlign     = "center",
+  currentVerticalAlign = "center",
+  currentStrokeWidth   = 2,
 }) {
   return (
     <>
@@ -45,6 +63,22 @@ export default function ContextMenuShape({
         ))}
       </div>
 
+      <div className="context-menu-label" style={{ marginTop: 4 }}>Border width</div>
+      <div className="stroke-row">
+        {STROKE_WIDTHS.map((sw) => (
+          <button
+            key={sw}
+            className={`stroke-btn${currentStrokeWidth === sw ? " active" : ""}`}
+            title={`${sw}px`}
+            onClick={() => onStrokeWidth?.(sw)}
+          >
+            <svg width="28" height="14" viewBox="0 0 28 14">
+              <line x1="3" y1="7" x2="25" y2="7" stroke="#1a1a1a" strokeWidth={sw} strokeLinecap="round"/>
+            </svg>
+          </button>
+        ))}
+      </div>
+
       <div className="context-menu-divider" style={{ margin: "6px 4px" }} />
 
       <div className="context-menu-label">Text colour</div>
@@ -70,6 +104,48 @@ export default function ContextMenuShape({
             onClick={() => onFontFamily?.(f.id)}
           >
             {f.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="context-menu-label" style={{ marginTop: 4 }}>Font size</div>
+      <div className="font-size-row">
+        {FONT_SIZES.map((s) => (
+          <button
+            key={s.id}
+            className={`font-size-btn${currentFontSize === s.id ? " active" : ""}`}
+            style={{ fontSize: FONT_SIZE_PX[s.id] }}
+            onClick={() => onFontSize?.(s.id)}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="context-menu-label" style={{ marginTop: 4 }}>H align</div>
+      <div className="align-row">
+        {TEXT_ALIGNS.map((a) => (
+          <button
+            key={a.id}
+            className={`align-btn${currentTextAlign === a.id ? " active" : ""}`}
+            title={a.title}
+            onClick={() => onTextAlign?.(a.id)}
+          >
+            {H_ICONS[a.id]}
+          </button>
+        ))}
+      </div>
+
+      <div className="context-menu-label" style={{ marginTop: 4 }}>V align</div>
+      <div className="align-row">
+        {VERT_ALIGNS.map((a) => (
+          <button
+            key={a.id}
+            className={`align-btn${currentVerticalAlign === a.id ? " active" : ""}`}
+            title={a.title}
+            onClick={() => onVerticalAlign?.(a.id)}
+          >
+            {V_ICONS[a.id]}
           </button>
         ))}
       </div>

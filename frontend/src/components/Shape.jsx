@@ -25,7 +25,7 @@ const FL_PAD = 24; // padding around the bounding box
 
 function FlexLine({ shape: shapeData, isSelected, isGroupSelected, onSelect, onUpdate, onOpenMenu, onEndpointDrag, onGroupDragStart }) {
   const { _id, color = "black", points: pts,
-          lineType = "straight", lineStyle = "solid" } = shapeData;
+          lineType = "straight", lineStyle = "solid", strokeWidth = 2 } = shapeData;
   const elRef = useRef(null);
   const strokeColor = COLORS.find(c => c.id === color)?.hex ?? "#1a1a1a";
 
@@ -221,7 +221,7 @@ function FlexLine({ shape: shapeData, isSelected, isGroupSelected, onSelect, onU
         {lineType === "curved" ? (
           <path
             d={curvedPathStr}
-            fill="none" stroke={strokeColor} strokeWidth="2"
+            fill="none" stroke={strokeColor} strokeWidth={strokeWidth}
             strokeLinecap="round" strokeLinejoin="round"
             strokeDasharray={dashArray}
             style={{ pointerEvents: "none" }}
@@ -229,7 +229,7 @@ function FlexLine({ shape: shapeData, isSelected, isGroupSelected, onSelect, onU
         ) : (
           <polyline
             points={activePolyStr}
-            fill="none" stroke={strokeColor} strokeWidth="2"
+            fill="none" stroke={strokeColor} strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeLinejoin={lineType === "step" ? "miter" : "round"}
             strokeDasharray={dashArray}
@@ -280,7 +280,9 @@ function RegularShape({
   onGroupDragStart,
 }) {
   const { _id, shape, x, y, w, h, text, color = "black", fillMode = "none",
-          textColor = null, fontFamily = "sans", rotation = 0 } = shapeData;
+          textColor = null, fontFamily = "sans", rotation = 0,
+          fontSize = "md", textAlign = "center", verticalAlign = "center",
+          strokeWidth = 2 } = shapeData;
 
   const FONT_MAP = {
     sans:        "DM Sans, system-ui, sans-serif",
@@ -288,6 +290,10 @@ function RegularShape({
     mono:        "monospace",
     handwriting: "cursive",
   };
+
+  const FONT_SIZE_MAP = { sm: 11, md: 13, lg: 16, xl: 20 };
+  const H_ALIGN_MAP   = { left: "flex-start", center: "center", right: "flex-end" };
+  const V_ALIGN_MAP   = { top: "flex-start",  center: "center", bottom: "flex-end" };
 
   const elRef       = useRef(null);
   const [editing,   setEditing]   = useState(false);
@@ -442,14 +448,14 @@ function RegularShape({
     if (isLine) return (
       <svg width={svgW} height={4} className="shape-svg">
         <line x1="2" y1="2" x2={svgW - 2} y2="2"
-          stroke={strokeColor} strokeWidth="2.5" strokeLinecap="round" />
+          stroke={strokeColor} strokeWidth={strokeWidth} strokeLinecap="round" />
       </svg>
     );
     if (shape === "circle") {
       const rx = svgW / 2 - 2, ry = svgH / 2 - 2;
       return (
         <svg width={svgW} height={svgH} className="shape-svg">
-          <ellipse cx={svgW/2} cy={svgH/2} rx={rx} ry={ry} fill={fillColor} stroke={strokeColor} strokeWidth="2" />
+          <ellipse cx={svgW/2} cy={svgH/2} rx={rx} ry={ry} fill={fillColor} stroke={strokeColor} strokeWidth={strokeWidth} />
         </svg>
       );
     }
@@ -458,14 +464,14 @@ function RegularShape({
       return (
         <svg width={svgW} height={svgH} className="shape-svg">
           <polygon points={`${svgW/2},${p} ${svgW-p},${svgH-p} ${p},${svgH-p}`}
-            fill={fillColor} stroke={strokeColor} strokeWidth="2" strokeLinejoin="round" />
+            fill={fillColor} stroke={strokeColor} strokeWidth={strokeWidth} strokeLinejoin="round" />
         </svg>
       );
     }
     return (
       <svg width={svgW} height={svgH} className="shape-svg">
         <rect x="2" y="2" width={svgW - 4} height={svgH - 4} rx="10" ry="10"
-          fill={fillColor} stroke={strokeColor} strokeWidth="2" />
+          fill={fillColor} stroke={strokeColor} strokeWidth={strokeWidth} />
       </svg>
     );
   }
@@ -498,18 +504,26 @@ function RegularShape({
       ) : renderSVG()}
 
       {!editing && text && !isLine && (
-        <div className="shape-text-overlay" style={{ color: resolvedTextColor, fontFamily: resolvedFont }}>{text}</div>
+        <div className="shape-text-overlay" style={{
+          color: resolvedTextColor, fontFamily: resolvedFont,
+          fontSize: FONT_SIZE_MAP[fontSize],
+          alignItems: V_ALIGN_MAP[verticalAlign],
+          justifyContent: H_ALIGN_MAP[textAlign],
+          textAlign,
+        }}>{text}</div>
       )}
       {!editing && text && isLine && (
-        <div className="shape-line-label" style={{ color: resolvedTextColor, fontFamily: resolvedFont }}>{text}</div>
+        <div className="shape-line-label" style={{ color: resolvedTextColor, fontFamily: resolvedFont, fontSize: FONT_SIZE_MAP[fontSize] }}>{text}</div>
       )}
 
       {editing && (
-        <div className={isLine ? "shape-line-label-edit" : "shape-textarea-wrap"}>
+        <div className={isLine ? "shape-line-label-edit" : "shape-textarea-wrap"} style={!isLine ? {
+          alignItems: V_ALIGN_MAP[verticalAlign],
+        } : {}}>
           <div
             ref={textareaRef}
             className="shape-textarea"
-            style={{ color: resolvedTextColor, fontFamily: resolvedFont }}
+            style={{ color: resolvedTextColor, fontFamily: resolvedFont, fontSize: FONT_SIZE_MAP[fontSize], textAlign }}
             contentEditable
             suppressContentEditableWarning
             onInput={e => setDraft(e.currentTarget.textContent)}

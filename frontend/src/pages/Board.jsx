@@ -709,6 +709,26 @@ const [reactions,      setReactions]      = useState([]);
           }
           currentTextColor={currentTextColor}
           currentFontFamily={currentFontFamily}
+          onFontSize={(sz) =>
+            menu.mode === "note"
+              ? handleNoteUpdate(menu.noteId,   { fontSize: sz })
+              : handleShapeUpdate(menu.shapeId, { fontSize: sz })
+          }
+          currentFontSize={menu.mode === "note" ? (menuNote?.fontSize ?? "md") : (menuShape?.fontSize ?? "md")}
+          onTextAlign={(a) =>
+            menu.mode === "note"
+              ? handleNoteUpdate(menu.noteId,   { textAlign: a })
+              : handleShapeUpdate(menu.shapeId, { textAlign: a })
+          }
+          currentTextAlign={menu.mode === "note" ? (menuNote?.textAlign ?? "left") : (menuShape?.textAlign ?? "center")}
+          onVerticalAlign={(a) =>
+            menu.mode === "note"
+              ? handleNoteUpdate(menu.noteId,   { verticalAlign: a })
+              : handleShapeUpdate(menu.shapeId, { verticalAlign: a })
+          }
+          currentVerticalAlign={menu.mode === "note" ? (menuNote?.verticalAlign ?? "top") : (menuShape?.verticalAlign ?? "center")}
+          onStrokeWidth={(sw) => handleShapeUpdate(menu.shapeId, { strokeWidth: sw })}
+          currentStrokeWidth={menuShape?.strokeWidth ?? 2}
           onLineType={(lt) => handleShapeUpdate(menu.shapeId, { lineType: lt })}
           currentLineType={menuShape?.lineType  ?? "straight"}
           onLineStyle={(ls) => handleShapeUpdate(menu.shapeId, { lineStyle: ls })}

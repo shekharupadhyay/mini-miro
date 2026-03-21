@@ -181,9 +181,14 @@ export default function Note({
     handwriting: "cursive",
   };
 
+  const FONT_SIZE_MAP = { sm: 11, md: 14, lg: 17, xl: 21 };
+  const V_ALIGN_MAP   = { top: "flex-start", center: "center", bottom: "flex-end" };
+
   const textStyle = {
     color:      note.textColor  ?? "inherit",
     fontFamily: FONT_MAP[note.fontFamily] ?? "inherit",
+    fontSize:   FONT_SIZE_MAP[note.fontSize ?? "md"],
+    textAlign:  note.textAlign  ?? "left",
   };
 
   return (
@@ -202,6 +207,9 @@ export default function Note({
         cursor:          isEditing ? "text" : "grab",
         transform:       `rotate(${rotation}deg)`,
         transformOrigin: "center center",
+        display:         "flex",
+        flexDirection:   "column",
+        justifyContent:  V_ALIGN_MAP[note.verticalAlign ?? "top"],
       }}
     >
       {isEditing ? (

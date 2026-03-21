@@ -6,7 +6,7 @@ import ContextMenuFlexLine  from "./ContextMenuFlexLine";
 import "./contextMenu.css";
 
 // Estimated max heights per mode for viewport overflow clamping
-const MODE_HEIGHT = { canvas: 200, note: 340, shape: 400, flexline: 260 };
+const MODE_HEIGHT = { canvas: 200, note: 560, shape: 680, flexline: 320 };
 
 export default function ContextMenu({
   open, x, y, onClose, mode = "note",
@@ -22,6 +22,14 @@ export default function ContextMenu({
   onTextColor, onFontFamily,
   currentTextColor  = "#111318",
   currentFontFamily = "sans",
+  // font size + alignment (note + shape)
+  onFontSize, onTextAlign, onVerticalAlign,
+  currentFontSize      = "md",
+  currentTextAlign     = "center",
+  currentVerticalAlign = "center",
+  // stroke width (shape + flexline)
+  onStrokeWidth,
+  currentStrokeWidth = 2,
   // flexline-only
   onLineType, currentLineType = "straight",
   onLineStyle, currentLineStyle = "solid",
@@ -57,6 +65,7 @@ export default function ContextMenu({
   if (!open) return null;
 
   const textProps = { onTextColor, onFontFamily, currentTextColor, currentFontFamily };
+  const sizeAlignProps = { onFontSize, onTextAlign, onVerticalAlign, currentFontSize, currentTextAlign, currentVerticalAlign };
 
   return (
     <div
@@ -73,6 +82,7 @@ export default function ContextMenu({
           onEdit={onEdit} onDelete={onDelete} onClose={onClose}
           onChangeColor={onChangeColor}
           {...textProps}
+          {...sizeAlignProps}
         />
       )}
       {mode === "shape" && (
@@ -80,7 +90,9 @@ export default function ContextMenu({
           onEditShape={onEditShape} onDeleteShape={onDeleteShape} onClose={onClose}
           onShapeColor={onShapeColor} onShapeFill={onShapeFill}
           currentShapeColor={currentShapeColor} currentShapeFill={currentShapeFill}
+          onStrokeWidth={onStrokeWidth} currentStrokeWidth={currentStrokeWidth}
           {...textProps}
+          {...sizeAlignProps}
         />
       )}
       {mode === "flexline" && (
@@ -89,6 +101,7 @@ export default function ContextMenu({
           onShapeColor={onShapeColor} currentShapeColor={currentShapeColor}
           onLineType={onLineType}     currentLineType={currentLineType}
           onLineStyle={onLineStyle}   currentLineStyle={currentLineStyle}
+          onStrokeWidth={onStrokeWidth} currentStrokeWidth={currentStrokeWidth}
         />
       )}
     </div>

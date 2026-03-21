@@ -1,4 +1,4 @@
-import { SHAPE_COLORS } from "./contextMenuData";
+import { SHAPE_COLORS, STROKE_WIDTHS } from "./contextMenuData";
 
 const LINE_TYPES = [
   {
@@ -53,9 +53,10 @@ const LINE_STYLES = [
 
 export default function ContextMenuFlexLine({
   onDeleteShape, onClose,
-  onShapeColor, currentShapeColor = "black",
-  onLineType,   currentLineType  = "straight",
-  onLineStyle,  currentLineStyle = "solid",
+  onShapeColor,  currentShapeColor  = "black",
+  onLineType,    currentLineType    = "straight",
+  onLineStyle,   currentLineStyle   = "solid",
+  onStrokeWidth, currentStrokeWidth = 2,
 }) {
   return (
     <>
@@ -96,6 +97,22 @@ export default function ContextMenuFlexLine({
             onClick={() => onLineStyle?.(s.id)}
           >
             {s.icon}
+          </button>
+        ))}
+      </div>
+
+      <div className="context-menu-label" style={{ marginTop: 6 }}>Line width</div>
+      <div className="stroke-row">
+        {STROKE_WIDTHS.map((sw) => (
+          <button
+            key={sw}
+            className={`stroke-btn${currentStrokeWidth === sw ? " active" : ""}`}
+            title={`${sw}px`}
+            onClick={() => onStrokeWidth?.(sw)}
+          >
+            <svg width="28" height="14" viewBox="0 0 28 14">
+              <line x1="3" y1="7" x2="25" y2="7" stroke="#1a1a1a" strokeWidth={sw} strokeLinecap="round"/>
+            </svg>
           </button>
         ))}
       </div>

@@ -6,7 +6,8 @@ import { fetchShapes, createShape, updateShape, deleteShape } from "../api/shape
  */
 export function useShapes(boardId, socketRef) {
   const [shapes, setShapes] = useState([]);
-  const updateTimerRef = useRef({});
+  const updateTimerRef   = useRef({});
+  const pendingPatchRef  = useRef({});
 
   useEffect(() => {
     fetchShapes(boardId).then(setShapes);
@@ -19,9 +20,12 @@ export function useShapes(boardId, socketRef) {
       );
       socketRef.current?.emit("shape:updated", { _id: id, ...patch });
 
+      pendingPatchRef.current[id] = { ...pendingPatchRef.current[id], ...patch };
       clearTimeout(updateTimerRef.current[id]);
       updateTimerRef.current[id] = setTimeout(() => {
-        updateShape(id, patch).catch(console.error);
+        const accumulated = pendingPatchRef.current[id];
+        delete pendingPatchRef.current[id];
+        updateShape(id, accumulated).catch(console.error);
       }, 300);
     },
     [socketRef]
