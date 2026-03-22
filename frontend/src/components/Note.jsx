@@ -3,7 +3,7 @@ import { useDrag }                  from "../hooks/useDrag";
 import { useRotationAwareResize }   from "../hooks/useRotationAwareResize";
 import { useRotate }                from "../hooks/useRotate";
 import { useTextEditing }           from "../hooks/useTextEditing";
-import "./note.css";
+import "./Note.css";
 
 export default function Note({
   note,

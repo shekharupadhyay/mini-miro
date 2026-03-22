@@ -3,7 +3,7 @@ import ContextMenuCanvas    from "./ContextMenuCanvas";
 import ContextMenuNote      from "./ContextMenuNote";
 import ContextMenuShape     from "./ContextMenuShape";
 import ContextMenuFlexLine  from "./ContextMenuFlexLine";
-import "./contextMenu.css";
+import "./ContextMenu.css";
 
 // Estimated max heights per mode for viewport overflow clamping
 const MODE_HEIGHT = { canvas: 200, note: 560, shape: 680, flexline: 320 };
