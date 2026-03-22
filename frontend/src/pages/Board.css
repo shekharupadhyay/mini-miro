@@ -381,6 +381,94 @@
   box-shadow: 0 12px 32px rgba(1, 0, 41, 0.20);
 }
 
+/* ─── Share dropdown ─────────────────────────────────────────────── */
+.board-share-wrap {
+  position: relative;
+}
+
+.board-share-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 220px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.13);
+  padding: 14px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.board-share-section-label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.board-share-code-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f4f4f8;
+  border-radius: 7px;
+  padding: 8px 10px;
+}
+
+.board-share-code {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #010029;
+  font-family: monospace;
+}
+
+.board-share-copy-btn {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  cursor: pointer;
+  color: #374151;
+  transition: background 0.12s;
+}
+
+.board-share-copy-btn:hover {
+  background: #f3f4f6;
+}
+
+.board-share-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 0;
+}
+
+.board-share-link-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
+  padding: 2px 0;
+  width: 100%;
+  text-align: left;
+}
+
+.board-share-link-btn:hover {
+  color: #010029;
+}
+
 /* ─── Floating Left Toolbar ─────────────────────────────────────── */
 .board-left-toolbar {
   position: fixed;

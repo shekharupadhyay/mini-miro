@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { avatarColor, initials } from "../utils/avatar";
+import ReactionPicker  from "./ReactionPicker";
+import PresenceAvatars from "./PresenceAvatars";
 import "./reaction.css";
 
-const EMOJIS = ["👍", "❤️", "🔥", "😂", "😮", "👏", "🎉", "👋"];
-
 export default function BoardTopbar({
-  boardId,
+  boardName,
+  inviteCode,
   username,
   isAdmin,
   members,
@@ -18,19 +19,20 @@ export default function BoardTopbar({
   onRename,          // async (newName) => void  — admin only
   onDelete,          // async () => void          — admin only
 }) {
-  const [pickerOpen,    setPickerOpen]    = useState(false);
   const [renaming,      setRenaming]      = useState(false);
-  const [draft,         setDraft]         = useState(boardId);
+  const [draft,         setDraft]         = useState(boardName);
   const [renameError,   setRenameError]   = useState("");
   const [renaming_busy, setRenamingBusy] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting,      setDeleting]      = useState(false);
+  const [shareOpen,     setShareOpen]     = useState(false);
+  const [codeCopied,    setCodeCopied]    = useState(false);
+  const [linkCopied,    setLinkCopied]    = useState(false);
 
-  const pickerRef   = useRef(null);
-  const buttonRef   = useRef(null);
-  const renameRef   = useRef(null);
-  const avatarEls   = useRef({});
-  const myAvatarEl  = useRef(null);
+  const renameRef  = useRef(null);
+  const avatarEls  = useRef({});
+  const myAvatarEl = useRef(null);
+  const shareRef   = useRef(null);
 
   // Expose a function that returns the bounding rect of any member's avatar
   useEffect(() => {
@@ -42,40 +44,44 @@ export default function BoardTopbar({
     }
   });
 
-  // Close emoji picker when clicking outside
-  useEffect(() => {
-    if (!pickerOpen) return;
-    function onDown(e) {
-      if (pickerRef.current?.contains(e.target)) return;
-      if (buttonRef.current?.contains(e.target)) return;
-      setPickerOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [pickerOpen]);
-
   // Focus rename input when entering rename mode
   useEffect(() => {
     if (renaming) {
-      setDraft(boardId);
+      setDraft(boardName);
       setRenameError("");
       setTimeout(() => { renameRef.current?.select(); }, 0);
     }
-  }, [renaming, boardId]);
+  }, [renaming, boardName]);
 
-  function handlePickEmoji(emoji) {
-    const rect = myAvatarEl.current?.getBoundingClientRect() ?? null;
-    onReact?.(emoji, rect);
+  // Close share dropdown on outside click
+  useEffect(() => {
+    if (!shareOpen) return;
+    function onDown(e) {
+      if (!shareRef.current?.contains(e.target)) setShareOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [shareOpen]);
+
+  function copyCode() {
+    navigator.clipboard.writeText(inviteCode);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(window.location.href);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
   }
 
   async function commitRename() {
     const trimmed = draft.trim();
-    if (!trimmed || trimmed === boardId) { setRenaming(false); return; }
+    if (!trimmed || trimmed === boardName) { setRenaming(false); return; }
     setRenamingBusy(true);
     setRenameError("");
     try {
       await onRename(trimmed);
-      // navigation happens via socket broadcast — no need to setRenaming(false)
     } catch (err) {
       setRenameError(err.message || "Rename failed");
     } finally {
@@ -87,7 +93,6 @@ export default function BoardTopbar({
     setDeleting(true);
     try {
       await onDelete();
-      // navigation happens via socket broadcast
     } catch {
       setDeleting(false);
       setDeleteConfirm(false);
@@ -143,7 +148,7 @@ export default function BoardTopbar({
           </div>
         ) : (
           <div className="board-name-area">
-            <span className="board-subtitle">{boardId.toUpperCase()}</span>
+            <span className="board-subtitle">{boardName}</span>
             {isAdmin && (
               <button
                 className="board-edit-name-btn"
@@ -162,63 +167,9 @@ export default function BoardTopbar({
       {/* ── Right: presence + reaction + chat + export + share + user ── */}
       <div className="board-topbar-right">
 
-        {/* Presence avatars — exclude self */}
-        {(() => {
-          const others = members.filter((name) => name !== username);
-          if (!others.length) return null;
-          return (
-            <div className="board-presence">
-              {others.slice(0, 3).map((name, i) => (
-                <div
-                  key={name + i}
-                  ref={(el) => { if (el) avatarEls.current[name] = el; }}
-                  className="board-avatar"
-                  title={name}
-                  style={{ background: avatarColor(name), zIndex: others.length - i }}
-                >
-                  {initials(name)}
-                </div>
-              ))}
-              {others.length > 3 && (
-                <div className="board-avatar board-avatar-overflow">
-                  +{others.length - 3}
-                </div>
-              )}
-            </div>
-          );
-        })()}
+        <PresenceAvatars members={members} username={username} avatarEls={avatarEls} />
 
-        {/* Reaction picker */}
-        <div className="reaction-picker-wrap">
-          <button
-            ref={buttonRef}
-            className={`board-icon-btn${pickerOpen ? " active" : ""}`}
-            onClick={() => setPickerOpen((o) => !o)}
-            title="React"
-          >
-            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-              <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.6"/>
-              <path d="M7 11.5s1 1.5 3 1.5 3-1.5 3-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              <circle cx="7.5" cy="8.5" r="1" fill="currentColor"/>
-              <circle cx="12.5" cy="8.5" r="1" fill="currentColor"/>
-            </svg>
-          </button>
-
-          {pickerOpen && (
-            <div ref={pickerRef} className="reaction-picker">
-              {EMOJIS.map((e) => (
-                <button
-                  key={e}
-                  className="reaction-pick-btn"
-                  onClick={() => handlePickEmoji(e)}
-                  title={e}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <ReactionPicker myAvatarEl={myAvatarEl} onReact={onReact} />
 
         {/* Chat */}
         <button
@@ -236,14 +187,39 @@ export default function BoardTopbar({
           Export
         </button>
 
-        <button className="board-share-btn">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <path d="M11 2.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM5 6a2.5 2.5 0 1 1 0 5A2.5 2.5 0 0 1 5 6zm6 3a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z"
-              stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            <path d="M7.4 7.3l1.2-.8M7.4 8.7l1.2.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-          </svg>
-          Share
-        </button>
+        <div className="board-share-wrap" ref={shareRef}>
+          <button
+            className={`board-share-btn${shareOpen ? " active" : ""}`}
+            onClick={() => setShareOpen(o => !o)}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M11 2.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM5 6a2.5 2.5 0 1 1 0 5A2.5 2.5 0 0 1 5 6zm6 3a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z"
+                stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M7.4 7.3l1.2-.8M7.4 8.7l1.2.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            Share
+          </button>
+
+          {shareOpen && (
+            <div className="board-share-dropdown">
+              <p className="board-share-section-label">Invite code</p>
+              <div className="board-share-code-row">
+                <span className="board-share-code">{inviteCode || "—"}</span>
+                <button className="board-share-copy-btn" onClick={copyCode}>
+                  {codeCopied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              <div className="board-share-divider" />
+              <button className="board-share-link-btn" onClick={copyLink}>
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <path d="M6.5 9.5a3.5 3.5 0 0 0 5 0l2-2a3.5 3.5 0 0 0-5-5l-1 1"/>
+                  <path d="M9.5 6.5a3.5 3.5 0 0 0-5 0l-2 2a3.5 3.5 0 0 0 5 5l1-1"/>
+                </svg>
+                {linkCopied ? "Link copied!" : "Copy link"}
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Admin: delete board */}
         {isAdmin && !deleteConfirm && (

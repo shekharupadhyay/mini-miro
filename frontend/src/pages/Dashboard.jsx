@@ -1,147 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMe, clearToken, authHeaders } from "../utils/auth";
+import BoardPreview    from "../components/BoardPreview";
+import DashboardSidebar from "../components/DashboardSidebar";
+import CreateBoardCard from "../components/CreateBoardCard";
+import JoinBoardCard   from "../components/JoinBoardCard";
 import "./Dashboard.css";
 
 const API = import.meta.env.VITE_API_BASE;
-
-// ── Color maps ─────────────────────────────────────────────────────
-const NOTE_FILL = {
-  yellow: "#fef08a", orange: "#fed7aa", red: "#fecaca",
-  blue: "#bfdbfe",  green:  "#bbf7d0", pink: "#fbcfe8",
-  purple: "#e9d5ff", gray: "#e5e7eb",
-};
-
-const SHAPE_HEX = {
-  black: "#1a1a1a", red: "#ef4444", orange: "#fb923c", yellow: "#eab308",
-  green:  "#22c55e", blue: "#3b82f6", purple: "#a855f7", pink: "#ec4899",
-};
-
-function getFill(hex, fillMode) {
-  if (fillMode === "solid") return hex + "cc";
-  if (fillMode === "semi")  return hex + "44";
-  return "none";
-}
-
-// ── Mini SVG shape ─────────────────────────────────────────────────
-function MiniShape({ s }) {
-  const w   = s.w ?? 120, h = s.h ?? 120;
-  const cx  = s.x + w / 2, cy = s.y + h / 2;
-  const hex = SHAPE_HEX[s.color ?? "black"] ?? "#1a1a1a";
-  const fill = getFill(hex, s.fillMode ?? "none");
-  const t = s.rotation ? `rotate(${s.rotation} ${cx} ${cy})` : undefined;
-
-  if (s.shape === "circle") {
-    return <ellipse cx={cx} cy={cy} rx={w/2-1} ry={h/2-1} fill={fill} stroke={hex} strokeWidth="2" transform={t} />;
-  }
-  if (s.shape === "triangle") {
-    return <polygon points={`${cx},${s.y+2} ${s.x+w-2},${s.y+h-2} ${s.x+2},${s.y+h-2}`}
-                    fill={fill} stroke={hex} strokeWidth="2" strokeLinejoin="round" transform={t} />;
-  }
-  if (s.shape === "line") {
-    return <line x1={s.x+2} y1={s.y+2} x2={s.x+w-2} y2={s.y+2}
-                 stroke={hex} strokeWidth="2.5" strokeLinecap="round" transform={t} />;
-  }
-  return <rect x={s.x+1} y={s.y+1} width={w-2} height={h-2} rx="6"
-               fill={fill} stroke={hex} strokeWidth="2" transform={t} />;
-}
-
-// ── Mini canvas renderer ───────────────────────────────────────────
-function MiniCanvas({ notes, shapes }) {
-  // Collect bounding boxes
-  const rects = [
-    ...notes.map(n => ({ x: n.x, y: n.y, r: n.x + (n.w ?? 180), b: n.y + (n.h ?? 110) })),
-    ...shapes.map(s => ({ x: s.x, y: s.y, r: s.x + (s.w ?? 120), b: s.y + (s.shape === "line" ? 4 : (s.h ?? 120)) })),
-  ];
-
-  const pad  = 24;
-  const minX = Math.min(...rects.map(r => r.x)) - pad;
-  const minY = Math.min(...rects.map(r => r.y)) - pad;
-  const maxX = Math.max(...rects.map(r => r.r)) + pad;
-  const maxY = Math.max(...rects.map(r => r.b)) + pad;
-
-  return (
-    <svg
-      viewBox={`${minX} ${minY} ${maxX - minX} ${maxY - minY}`}
-      preserveAspectRatio="xMidYMid meet"
-      style={{ width: "100%", height: "100%" }}
-    >
-      {notes.map(n => {
-        const w = n.w ?? 180, h = n.h ?? 110;
-        const cx = n.x + w / 2, cy = n.y + h / 2;
-        const t = n.rotation ? `rotate(${n.rotation} ${cx} ${cy})` : undefined;
-        return (
-          <rect key={n._id} x={n.x} y={n.y} width={w} height={h}
-                fill={NOTE_FILL[n.color] ?? "#fef08a"} opacity="0.92" transform={t} />
-        );
-      })}
-      {shapes.map(s => <MiniShape key={s._id} s={s} />)}
-    </svg>
-  );
-}
-
-// ── Board preview card thumbnail ───────────────────────────────────
-// Lazy-loads via IntersectionObserver so we only fetch visible boards.
-function BoardPreview({ boardId }) {
-  const [data, setData] = useState(null); // null = not fetched yet
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) return;
-      obs.disconnect();
-      Promise.all([
-        fetch(`${API}/api/boards/${encodeURIComponent(boardId)}/notes`).then(r => r.json()).catch(() => []),
-        fetch(`${API}/api/boards/${encodeURIComponent(boardId)}/shapes`).then(r => r.json()).catch(() => []),
-      ]).then(([notes, shapes]) => setData({ notes, shapes }));
-    }, { threshold: 0.05 });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [boardId]);
-
-  const empty = data && data.notes.length === 0 && data.shapes.length === 0;
-
-  return (
-    <div ref={ref} className="db-card-thumb">
-      {data === null && <div className="db-thumb-shimmer" />}
-      {empty && (
-        <div className="db-thumb-empty">
-          <svg width="36" height="36" viewBox="0 0 20 20" fill="none"
-               stroke="rgba(1,0,41,0.12)" strokeWidth="1.4" strokeLinecap="round">
-            <rect x="2" y="2" width="7" height="7" rx="1"/>
-            <rect x="11" y="2" width="7" height="7" rx="1"/>
-            <rect x="2" y="11" width="7" height="7" rx="1"/>
-            <rect x="11" y="11" width="7" height="7" rx="1"/>
-          </svg>
-          <span>Empty board</span>
-        </div>
-      )}
-      {data && !empty && <MiniCanvas notes={data.notes} shapes={data.shapes} />}
-    </div>
-  );
-}
-
-// ── Nav items ──────────────────────────────────────────────────────
-const NAV = [
-  { id: "recent", label: "Recent", icon: (
-    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-      <circle cx="10" cy="10" r="7"/><path d="M10 6.5V10l2.5 2"/>
-    </svg>
-  )},
-  { id: "starred", label: "Starred", icon: (
-    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10 2l2.4 5H18l-4.5 3.3 1.7 5.5L10 13l-5.2 2.8 1.7-5.5L2 7h5.6z"/>
-    </svg>
-  )},
-  { id: "shared", label: "Shared with me", icon: (
-    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-      <circle cx="8" cy="7" r="3"/><path d="M2 17c0-3.3 2.7-6 6-6"/>
-      <circle cx="15" cy="10" r="2.5"/><path d="M11 17c0-2.2 1.8-4 4-4s4 1.8 4 4"/>
-    </svg>
-  )},
-];
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -207,7 +73,7 @@ export default function Dashboard() {
       if (res.status === 409) { setCreateError("Name already taken — choose another"); return; }
       if (!res.ok) { setCreateError("Something went wrong"); return; }
       const room = await res.json();
-      navigate(`/board/${room.name}`, { state: { username: user.name, isAdmin: true } });
+      navigate(`/board/${room._id}`, { state: { username: user.name, isAdmin: true, boardName: room.name, inviteCode: room.inviteCode } });
     } catch { setCreateError("Something went wrong"); }
     finally    { setCreating(false); }
   }
@@ -223,7 +89,8 @@ export default function Dashboard() {
         body: JSON.stringify({ name: randomId, adminName: user.name }),
       });
       if (!res.ok) { setCreateError("Something went wrong"); return; }
-      navigate(`/board/${randomId}`, { state: { username: user.name, isAdmin: true } });
+      const room = await res.json();
+      navigate(`/board/${room._id}`, { state: { username: user.name, isAdmin: true, boardName: room.name, inviteCode: room.inviteCode } });
     } catch { setCreateError("Something went wrong"); }
     finally   { setCreating(false); }
   }
@@ -232,21 +99,30 @@ export default function Dashboard() {
   async function handleJoin(e) {
     e.preventDefault();
     setJoinError("");
-    if (!joinName.trim()) { setJoinError("Enter a board name"); return; }
+    if (!joinName.trim()) { setJoinError("Enter an invite code or paste a link"); return; }
     setJoining(true);
     try {
-      const res = await fetch(`${API}/api/rooms/${encodeURIComponent(joinName.trim())}/exists`);
-      const { exists } = await res.json();
-      if (!exists) { setJoinError("Board not found — check the name"); return; }
-      const roomRes = await fetch(`${API}/api/rooms/${encodeURIComponent(joinName.trim())}`);
-      const room = await roomRes.json();
+      // If the input contains a board URL, extract the ID and join directly
+      const linkMatch = joinName.trim().match(/\/board\/([a-f0-9]{24})/i);
+      if (linkMatch) {
+        const boardId = linkMatch[1];
+        const roomRes = await fetch(`${API}/api/rooms/${boardId}`);
+        if (roomRes.status === 404) { setJoinError("Board not found — check the link"); return; }
+        if (!roomRes.ok) { setJoinError("Something went wrong"); return; }
+        const room = await roomRes.json();
+        const isAdmin = room.adminName === user.name;
+        await fetch(`${API}/api/rooms/${room._id}/join`, { method: "POST", headers: authHeaders() });
+        navigate(`/board/${room._id}`, { state: { username: user.name, isAdmin, boardName: room.name, inviteCode: room.inviteCode } });
+        return;
+      }
+      // Otherwise treat as invite code
+      const codeRes = await fetch(`${API}/api/rooms/code/${encodeURIComponent(joinName.trim().toUpperCase())}`);
+      if (codeRes.status === 404) { setJoinError("Invalid invite code — check and try again"); return; }
+      if (!codeRes.ok) { setJoinError("Something went wrong"); return; }
+      const room = await codeRes.json();
       const isAdmin = room.adminName === user.name;
-      // Record membership so the board appears under "Shared with me"
-      await fetch(`${API}/api/rooms/${encodeURIComponent(joinName.trim())}/join`, {
-        method: "POST",
-        headers: authHeaders(),
-      });
-      navigate(`/board/${joinName.trim()}`, { state: { username: user.name, isAdmin } });
+      await fetch(`${API}/api/rooms/${room._id}/join`, { method: "POST", headers: authHeaders() });
+      navigate(`/board/${room._id}`, { state: { username: user.name, isAdmin, boardName: room.name, inviteCode: room.inviteCode } });
     } catch { setJoinError("Something went wrong"); }
     finally   { setJoining(false); }
   }
@@ -281,31 +157,7 @@ export default function Dashboard() {
   return (
     <div className="db-root">
 
-      {/* ── Sidebar ───────────────────────────────────────────────── */}
-      <aside className="db-sidebar">
-        <div className="db-sidebar-brand">
-          <div className="db-sidebar-logo-icon">
-            <svg viewBox="0 0 14 14" fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" stroke="white">
-              <rect x="1" y="1" width="5" height="5"/><rect x="8" y="1" width="5" height="5"/>
-              <rect x="1" y="8" width="5" height="5"/><rect x="8" y="8" width="5" height="5"/>
-            </svg>
-          </div>
-          <span className="db-sidebar-brand-name">MiniMiro</span>
-        </div>
-
-        <nav className="db-sidebar-nav">
-          {NAV.map(({ id, label, icon }) => (
-            <button
-              key={id}
-              className={`db-nav-item${activeNav === id ? " active" : ""}`}
-              onClick={() => setActiveNav(id)}
-            >
-              {icon}
-              <span>{label}</span>
-            </button>
-          ))}
-        </nav>
-      </aside>
+      <DashboardSidebar activeNav={activeNav} onNavChange={setActiveNav} />
 
       {/* ── Main ──────────────────────────────────────────────────── */}
       <div className="db-content">
@@ -362,74 +214,23 @@ export default function Dashboard() {
           <section className="db-section">
             <h2 className="db-section-title">Create New</h2>
             <div className="db-action-row">
-
-              {/* New Board */}
-              <div className="db-action-card open">
-                <div className="db-action-card-btn">
-                  <div className="db-action-icon">
-                    <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                      <path d="M10 4v12M4 10h12"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="db-action-label">New Board</div>
-                    <div className="db-action-sub">Start from scratch</div>
-                  </div>
-                </div>
-
-                <div className="db-action-form">
-                  <form onSubmit={handleCreate}>
-                    <input
-                      className="db-form-input"
-                      value={createName}
-                      onChange={e => { setCreateName(e.target.value); setCreateError(""); }}
-                      placeholder="Board name"
-                    />
-                    {createError && <div className="db-form-error">{createError}</div>}
-                    <div className="db-form-row">
-                      <button className="db-form-btn primary" type="submit" disabled={creating}>
-                        {creating ? "Creating…" : "Create"}
-                      </button>
-                      <button className="db-form-btn ghost" type="button" onClick={handleCreateRandom} disabled={creating}>
-                        🎲 Random
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-
-              {/* Join */}
-              <div className="db-action-card db-action-card-join open">
-                <div className="db-action-card-btn">
-                  <div className="db-action-icon">
-                    <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                      <path d="M4 10h12M11 5l5 5-5 5"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="db-action-label">Join</div>
-                    <div className="db-action-sub">Enter a board name</div>
-                  </div>
-                </div>
-
-                <div className="db-action-form">
-                  <form onSubmit={handleJoin}>
-                    <input
-                      className="db-form-input"
-                      value={joinName}
-                      onChange={e => { setJoinName(e.target.value); setJoinError(""); }}
-                      placeholder="Board name"
-                    />
-                    {joinError && <div className="db-form-error">{joinError}</div>}
-                    <div className="db-form-row">
-                      <button className="db-form-btn primary" type="submit" disabled={joining}>
-                        {joining ? "Checking…" : "Join Board"}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-
+              <CreateBoardCard
+                createName={createName}
+                setCreateName={setCreateName}
+                createError={createError}
+                setCreateError={setCreateError}
+                creating={creating}
+                onCreate={handleCreate}
+                onCreateRandom={handleCreateRandom}
+              />
+              <JoinBoardCard
+                joinName={joinName}
+                setJoinName={setJoinName}
+                joinError={joinError}
+                setJoinError={setJoinError}
+                joining={joining}
+                onJoin={handleJoin}
+              />
             </div>
           </section>
 
@@ -456,9 +257,9 @@ export default function Dashboard() {
                   <div
                     key={board._id}
                     className="db-board-card"
-                    onClick={() => navigate(`/board/${board.name}`, { state: { username: user.name, isAdmin: true } })}
+                    onClick={() => navigate(`/board/${board._id}`, { state: { username: user.name, isAdmin: board.adminName === user.name, boardName: board.name, inviteCode: board.inviteCode } })}
                   >
-                    <BoardPreview boardId={board.name} />
+                    <BoardPreview boardId={board._id} />
                     <div className="db-card-info">
                       <div className="db-card-row">
                         <span className="db-card-name">{board.name}</span>

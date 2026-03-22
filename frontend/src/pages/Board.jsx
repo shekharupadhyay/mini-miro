@@ -6,7 +6,7 @@ import { useCamera }  from "../hooks/useCamera";
 import { useNotes }   from "../hooks/useNotes";
 import { useShapes }  from "../hooks/useShapes";
 import { exportAsPng }  from "../utils/exportAsPng";
-import { authHeaders }  from "../utils/auth";
+import { authHeaders, getMe }  from "../utils/auth";
 
 import BoardTopbar      from "../components/BoardTopbar";
 import BoardLeftToolbar from "../components/BoardLeftToolbar";
@@ -24,8 +24,34 @@ export default function Board() {
   const { boardId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { username = "Guest", isAdmin = false } = location.state || {};
+  const { username = "Guest", isAdmin = false, boardName: initialBoardName, inviteCode: initialInviteCode } = location.state || {};
+  const [boardName, setBoardName] = useState(initialBoardName ?? "");
+  const inviteCode = initialInviteCode ?? "";
   const viewportRef = useRef(null);
+
+  // Direct URL navigation: fetch user + room, auto-join, then re-navigate with full state
+  useEffect(() => {
+    if (location.state?.username) return; // came from dashboard, already have everything
+    (async () => {
+      const me = await getMe();
+      if (!me) { navigate("/login", { replace: true }); return; }
+      const r = await fetch(`${API}/api/rooms/${boardId}`).catch(() => null);
+      const room = r?.ok ? await r.json() : null;
+      if (!room) { navigate("/", { replace: true }); return; }
+      await fetch(`${API}/api/rooms/${room._id}/join`, {
+        method: "POST", headers: authHeaders(),
+      }).catch(() => {});
+      navigate(`/board/${boardId}`, {
+        replace: true,
+        state: {
+          username:   me.name,
+          isAdmin:    room.adminName === me.name,
+          boardName:  room.name,
+          inviteCode: room.inviteCode ?? "",
+        },
+      });
+    })();
+  }, [boardId]); // eslint-disable-line
 
   // ── UI-only state ─────────────────────────────────────────────────
   const [placingTool,    setPlacingTool]    = useState(null);
@@ -38,7 +64,7 @@ export default function Board() {
   const [selectedNoteId, setSelectedNoteId] = useState(null);
   const [selectedShapeId,setSelectedShapeId]= useState(null);
   const [chatOpen,       setChatOpen]       = useState(false);
-const [reactions,      setReactions]      = useState([]);
+  const [reactions,      setReactions]      = useState([]);
   const [menu, setMenu] = useState({
     open: false, x: 0, y: 0,
     mode: "canvas", noteId: null, shapeId: null,
@@ -77,7 +103,7 @@ const [reactions,      setReactions]      = useState([]);
   // ── Board events (rename / delete broadcast) ──────────────────────
   onBoardEventRef.current = function handleBoardEvent({ type, newName }) {
     if (type === "renamed") {
-      navigate(`/board/${newName}`, { replace: true, state: { username, isAdmin } });
+      setBoardName(newName);
     }
     if (type === "deleted") {
       navigate("/", { replace: true });
@@ -203,10 +229,19 @@ const [reactions,      setReactions]      = useState([]);
     const cx = el.x + el.w / 2;
     const cy = el.y + el.h / 2;
     let ax, ay;
-    if (side === "top")    { ax = cx;       ay = el.y; }
-    if (side === "bottom") { ax = cx;       ay = el.y + el.h; }
-    if (side === "left")   { ax = el.x;     ay = cy; }
-    if (side === "right")  { ax = el.x + el.w; ay = cy; }
+    if (el.shape === "triangle") {
+      // Triangle: tip at top-center, base at bottom. Left/right anchors
+      // sit on the actual slanted edges, not the bounding box sides.
+      if (side === "top")    { ax = cx;                  ay = el.y; }
+      if (side === "bottom") { ax = cx;                  ay = el.y + el.h; }
+      if (side === "left")   { ax = el.x + el.w / 4;    ay = cy; }
+      if (side === "right")  { ax = el.x + el.w * 3/4;  ay = cy; }
+    } else {
+      if (side === "top")    { ax = cx;              ay = el.y; }
+      if (side === "bottom") { ax = cx;              ay = el.y + el.h; }
+      if (side === "left")   { ax = el.x;            ay = cy; }
+      if (side === "right")  { ax = el.x + el.w;     ay = cy; }
+    }
     const rotation = el.rotation ?? 0;
     if (!rotation) return { x: ax, y: ay };
     const rad = (rotation * Math.PI) / 180;
@@ -463,10 +498,14 @@ const [reactions,      setReactions]      = useState([]);
       : (menuShape?.fontFamily ?? "sans");
 
   // ── Render ────────────────────────────────────────────────────────
+  // Show spinner while auto-joining via direct URL (no location.state yet)
+  if (!username) return <div className="db-loading"><div className="db-spinner" /></div>;
+
   return (
     <div className="board-page">
       <BoardTopbar
-        boardId={boardId}
+        boardName={boardName}
+        inviteCode={inviteCode}
         username={username}
         isAdmin={isAdmin}
         members={members}
@@ -566,6 +605,9 @@ const [reactions,      setReactions]      = useState([]);
                   })
                 );
               }
+
+              // Don't show bounding-box anchors on a selected flex line — it uses endpoint circles
+              if (selectedLineActive) return null;
 
               // Otherwise show anchors only on the selected element
               const rawEl = selNote ?? (selShape ?? null);

@@ -44,18 +44,21 @@ export default function makeNotesRouter(io) {
   // PATCH update note content, color, size, position, rotation, text color, font
   router.patch("/notes/:noteId", async (req, res) => {
     const { noteId } = req.params;
-    const { text, color, x, y, w, h, rotation, textColor, fontFamily } = req.body;
+    const { text, color, x, y, w, h, rotation, textColor, fontFamily, fontSize, textAlign, verticalAlign } = req.body;
 
     const update = {};
-    if (text       !== undefined) update.text       = text;
-    if (color      !== undefined) update.color      = color;
-    if (x          !== undefined) update.x          = x;
-    if (y          !== undefined) update.y          = y;
-    if (w          !== undefined) update.w          = w;
-    if (h          !== undefined) update.h          = h;
-    if (rotation   !== undefined) update.rotation   = rotation;
-    if (textColor  !== undefined) update.textColor  = textColor;
-    if (fontFamily !== undefined) update.fontFamily = fontFamily;
+    if (text          !== undefined) update.text          = text;
+    if (color         !== undefined) update.color         = color;
+    if (x             !== undefined) update.x             = x;
+    if (y             !== undefined) update.y             = y;
+    if (w             !== undefined) update.w             = w;
+    if (h             !== undefined) update.h             = h;
+    if (rotation      !== undefined) update.rotation      = rotation;
+    if (textColor     !== undefined) update.textColor     = textColor;
+    if (fontFamily    !== undefined) update.fontFamily    = fontFamily;
+    if (fontSize      !== undefined) update.fontSize      = fontSize;
+    if (textAlign     !== undefined) update.textAlign     = textAlign;
+    if (verticalAlign !== undefined) update.verticalAlign = verticalAlign;
 
     const updated = await Note.findByIdAndUpdate(noteId, update, { new: true });
     if (!updated) return res.status(404).json({ error: "Note not found" });
