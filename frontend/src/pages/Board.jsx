@@ -16,7 +16,7 @@ import Note             from "../components/Note";
 import Shape            from "../components/Shape";
 import ReactionOverlay  from "../components/ReactionOverlay";
 
-import "./board.css";
+import "./board-page.css";
 
 const API = import.meta.env.VITE_API_BASE;
 
