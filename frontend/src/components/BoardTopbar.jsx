@@ -14,6 +14,7 @@ export default function BoardTopbar({
   onExport,
   chatOpen,
   onChatToggle,
+  hasUnread,
   onReact,           // (emoji, avatarRect) => void
   getAvatarPosRef,   // ref — Board writes a getter fn into this
   onRename,          // async (newName) => void  — admin only
@@ -102,7 +103,7 @@ export default function BoardTopbar({
   return (
     <div className="board-topbar">
 
-      {/* ── Left: Logo + board name ──────────────────────────── */}
+      {/* ── Left: Logo ───────────────────────────────────────── */}
       <div className="board-brand-area">
         <Link to="/" className="board-brand-link">
           <div className="board-logo">
@@ -116,8 +117,10 @@ export default function BoardTopbar({
           </div>
           <span className="board-title">MiniMiro</span>
         </Link>
+      </div>
 
-        {/* Board name / rename */}
+      {/* ── Center: Board name / rename ──────────────────────── */}
+      <div className="board-center-area">
         {renaming ? (
           <div className="board-rename-wrap">
             <input
@@ -148,7 +151,7 @@ export default function BoardTopbar({
           </div>
         ) : (
           <div className="board-name-area">
-            <span className="board-subtitle">{boardName}</span>
+            <span className="board-name-label">{boardName}</span>
             {isAdmin && (
               <button
                 className="board-edit-name-btn"
@@ -176,11 +179,13 @@ export default function BoardTopbar({
           className={`board-icon-btn${chatOpen ? " active" : ""}`}
           onClick={onChatToggle}
           title="Chat"
+          style={{ position: "relative" }}
         >
           <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
             <path d="M3 4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6l-3 3V4z"
                   stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
           </svg>
+          {hasUnread && !chatOpen && <span className="chat-unread-dot" />}
         </button>
 
         <button className="board-export-btn" onClick={onExport} title="Export as PNG">

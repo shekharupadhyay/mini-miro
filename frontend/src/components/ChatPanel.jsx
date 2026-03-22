@@ -7,7 +7,7 @@ function formatTime(ts) {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function ChatPanel({ socket, username, isOpen, onToggle }) {
+export default function ChatPanel({ socket, username, isOpen, onToggle, onUnread }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [unread, setUnread] = useState(0);
@@ -29,6 +29,7 @@ export default function ChatPanel({ socket, username, isOpen, onToggle }) {
       setMessages(prev => [...prev, msg]);
       if (!isOpenRef.current && msg.username !== username) {
         setUnread(u => u + 1);
+        onUnread?.();
       }
     }
 

@@ -255,6 +255,45 @@
   line-height: 1;
 }
 
+/* ── Center: board name ─────────────────────────────────────────── */
+.board-center-area {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.board-center-area .board-name-area,
+.board-center-area .board-rename-wrap {
+  pointer-events: all;
+}
+
+.board-name-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--on-surface);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+
+/* Chat unread dot */
+.chat-unread-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 1.5px solid white;
+}
+
 /* ── Right side ─────────────────────────────────────────────────── */
 .board-topbar-right {
   margin-left: auto;

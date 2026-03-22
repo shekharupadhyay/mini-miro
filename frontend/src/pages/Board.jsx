@@ -64,6 +64,7 @@ export default function Board() {
   const [selectedNoteId, setSelectedNoteId] = useState(null);
   const [selectedShapeId,setSelectedShapeId]= useState(null);
   const [chatOpen,       setChatOpen]       = useState(false);
+  const [hasUnread,      setHasUnread]      = useState(false);
   const [reactions,      setReactions]      = useState([]);
   const [menu, setMenu] = useState({
     open: false, x: 0, y: 0,
@@ -511,7 +512,8 @@ export default function Board() {
         members={members}
         onExport={onExport}
         chatOpen={chatOpen}
-        onChatToggle={() => setChatOpen((o) => !o)}
+        onChatToggle={() => { setChatOpen((o) => !o); setHasUnread(false); }}
+        hasUnread={hasUnread}
         onReact={sendReaction}
         getAvatarPosRef={getAvatarPosRef}
         onRename={handleBoardRename}
@@ -781,7 +783,8 @@ export default function Board() {
           socket={socket}
           username={username}
           isOpen={chatOpen}
-          onToggle={() => setChatOpen((o) => !o)}
+          onToggle={() => { setChatOpen((o) => !o); setHasUnread(false); }}
+          onUnread={() => setHasUnread(true)}
         />
       </div>
 
