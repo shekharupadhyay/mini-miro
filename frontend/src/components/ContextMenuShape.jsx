@@ -18,6 +18,7 @@ export default function ContextMenuShape({
   onShapeColor, onShapeFill,
   onTextColor, onFontFamily,
   onFontSize, onTextAlign, onVerticalAlign, onStrokeWidth,
+  onRefineWithAI,
   currentShapeColor    = "black",
   currentShapeFill     = "none",
   currentTextColor     = "#111318",
@@ -33,6 +34,9 @@ export default function ContextMenuShape({
       <button className="context-menu-btn" onClick={() => { onEditShape?.(); onClose(); }}>
         <span>✏️ Edit text</span>
         <span className="context-menu-hint">Enter</span>
+      </button>
+      <button className="context-menu-btn" onClick={() => { onRefineWithAI?.(); onClose(); }}>
+        <span>✨ Refine with AI</span>
       </button>
 
       <div className="context-menu-label" style={{ marginTop: 4 }}>Fill</div>
