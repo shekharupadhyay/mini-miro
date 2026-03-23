@@ -1,17 +1,7 @@
 import { useRef } from "react";
 import { getBoardScale } from "../utils/canvas";
+import { SHAPE_COLORS }  from "./contextMenuData";
 import "./shape.css";
-
-const COLORS = [
-  { id: "black",  hex: "#1a1a1a" },
-  { id: "red",    hex: "#ef4444" },
-  { id: "orange", hex: "#fb923c" },
-  { id: "yellow", hex: "#eab308" },
-  { id: "green",  hex: "#22c55e" },
-  { id: "blue",   hex: "#3b82f6" },
-  { id: "purple", hex: "#a855f7" },
-  { id: "pink",   hex: "#ec4899" },
-];
 
 const FL_PAD = 24; // padding around the bounding box
 
@@ -19,7 +9,7 @@ export default function FlexLine({ shape: shapeData, isSelected, isGroupSelected
   const { _id, color = "black", points: pts,
           lineType = "straight", lineStyle = "solid", strokeWidth = 2 } = shapeData;
   const elRef = useRef(null);
-  const strokeColor = COLORS.find(c => c.id === color)?.hex ?? "#1a1a1a";
+  const strokeColor = SHAPE_COLORS.find(c => c.id === color)?.hex ?? "#1a1a1a";
 
   const dashArray = lineStyle === "dashed" ? "8 5"
                   : lineStyle === "dotted" ? "2 5"

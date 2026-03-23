@@ -1,11 +1,12 @@
-import { useRef } from "react";
+import { memo, useRef } from "react";
 import { useDrag }                  from "../hooks/useDrag";
 import { useRotationAwareResize }   from "../hooks/useRotationAwareResize";
 import { useRotate }                from "../hooks/useRotate";
 import { useTextEditing }           from "../hooks/useTextEditing";
+import { FONT_MAP, FONT_SIZE_MAP, V_ALIGN_MAP } from "../utils/typography";
 import "./Note.css";
 
-export default function Note({
+export default memo(function Note({
   note,
   isSelected,
   isGroupSelected,
@@ -68,22 +69,12 @@ export default function Note({
 
   function handleDoubleClick(e) {
     e.stopPropagation();
-    onStartEdit?.();
+    onStartEdit?.(note._id);
   }
 
   const w        = note.w ?? 180;
   const h        = note.h ?? 110;
   const rotation = note.rotation ?? 0;
-
-  const FONT_MAP = {
-    sans:        "system-ui, sans-serif",
-    serif:       "Georgia, serif",
-    mono:        "monospace",
-    handwriting: "cursive",
-  };
-
-  const FONT_SIZE_MAP = { sm: 11, md: 14, lg: 17, xl: 21 };
-  const V_ALIGN_MAP   = { top: "flex-start", center: "center", bottom: "flex-end" };
 
   const textStyle = {
     color:      note.textColor  ?? "inherit",
@@ -150,4 +141,4 @@ export default function Note({
       )}
     </div>
   );
-}
+});

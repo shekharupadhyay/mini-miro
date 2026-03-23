@@ -1,20 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useDrag }                from "../hooks/useDrag";
 import { useRotationAwareResize } from "../hooks/useRotationAwareResize";
 import { useRotate }              from "../hooks/useRotate";
+import { SHAPE_COLORS }           from "./contextMenuData";
+import { FONT_MAP, FONT_SIZE_MAP, H_ALIGN_MAP, V_ALIGN_MAP } from "../utils/typography";
 import FlexLine                   from "./FlexLine";
 import "./shape.css";
-
-const COLORS = [
-  { id: "black",  hex: "#1a1a1a" },
-  { id: "red",    hex: "#ef4444" },
-  { id: "orange", hex: "#fb923c" },
-  { id: "yellow", hex: "#eab308" },
-  { id: "green",  hex: "#22c55e" },
-  { id: "blue",   hex: "#3b82f6" },
-  { id: "purple", hex: "#a855f7" },
-  { id: "pink",   hex: "#ec4899" },
-];
 
 function getFill(hex, fillMode) {
   if (fillMode === "none")  return "none";
@@ -40,23 +31,12 @@ function RegularShape({
           fontSize = "md", textAlign = "center", verticalAlign = "center",
           strokeWidth = 2 } = shapeData;
 
-  const FONT_MAP = {
-    sans:        "DM Sans, system-ui, sans-serif",
-    serif:       "Georgia, serif",
-    mono:        "monospace",
-    handwriting: "cursive",
-  };
-
-  const FONT_SIZE_MAP = { sm: 11, md: 13, lg: 16, xl: 20 };
-  const H_ALIGN_MAP   = { left: "flex-start", center: "center", right: "flex-end" };
-  const V_ALIGN_MAP   = { top: "flex-start",  center: "center", bottom: "flex-end" };
-
   const elRef       = useRef(null);
   const [editing,   setEditing]   = useState(false);
   const [draft,     setDraft]     = useState(text ?? "");
   const textareaRef = useRef(null);
 
-  const colorHex          = COLORS.find(c => c.id === color)?.hex ?? "#1a1a1a";
+  const colorHex          = SHAPE_COLORS.find(c => c.id === color)?.hex ?? "#1a1a1a";
   const strokeColor       = colorHex;
   const fillColor         = getFill(colorHex, fillMode);
   const resolvedTextColor = textColor ?? strokeColor;
@@ -240,10 +220,10 @@ function RegularShape({
 }
 
 // ── Public export — picks the right renderer ──────────────────────────
-export default function Shape({ onEndpointDrag, isGroupSelected, onGroupDragStart, ...props }) {
+export default memo(function Shape({ onEndpointDrag, isGroupSelected, onGroupDragStart, ...props }) {
   const { shape: shapeData } = props;
   if (shapeData.shape === "line" && shapeData.points?.length >= 2) {
     return <FlexLine {...props} onEndpointDrag={onEndpointDrag} isGroupSelected={isGroupSelected} onGroupDragStart={onGroupDragStart} />;
   }
   return <RegularShape {...props} isGroupSelected={isGroupSelected} onGroupDragStart={onGroupDragStart} />;
-}
+});
