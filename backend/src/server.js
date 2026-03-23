@@ -10,7 +10,6 @@ import makeNotesRouter  from "./routes/notes.js";
 import makeShapesRouter from "./routes/shapes.js";
 import roomsRouter      from "./routes/rooms.js";
 import authRouter       from "./routes/auth.js";
-import aiRouter         from "./routes/ai.js";
 
 const app = express();
 
@@ -149,7 +148,6 @@ app.use("/auth", authRouter);
 app.use("/api", makeNotesRouter(io));
 app.use("/api", makeShapesRouter(io));
 app.use("/api", roomsRouter);
-app.use("/api/ai", aiRouter);
 
 app.get("/health", (req, res) => {
   res.json({ ok: true, message: "Backend is running" });

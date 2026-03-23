@@ -15,7 +15,6 @@ import ChatPanel        from "../components/ChatPanel";
 import Note             from "../components/Note";
 import Shape            from "../components/Shape";
 import ReactionOverlay  from "../components/ReactionOverlay";
-import AIRefineModal    from "../components/AIRefineModal";
 
 import "./board-page.css";
 
@@ -66,7 +65,6 @@ export default function Board() {
   const [selectedShapeId,setSelectedShapeId]= useState(null);
   const [chatOpen,       setChatOpen]       = useState(false);
   const [hasUnread,      setHasUnread]      = useState(false);
-  const [aiRefine,       setAiRefine]       = useState(null); // { text, onAccept }
   const [reactions,      setReactions]      = useState([]);
   const [menu, setMenu] = useState({
     open: false, x: 0, y: 0,
@@ -779,25 +777,6 @@ export default function Board() {
           currentLineType={menuShape?.lineType  ?? "straight"}
           onLineStyle={(ls) => handleShapeUpdate(menu.shapeId, { lineStyle: ls })}
           currentLineStyle={menuShape?.lineStyle ?? "solid"}
-          onRefineWithAI={() => {
-            if (menu.mode === "note") {
-              setAiRefine({
-                text: menuNote?.text ?? "",
-                onAccept: (refined) => {
-                  handleNoteUpdate(menu.noteId, { text: refined });
-                  setAiRefine(null);
-                },
-              });
-            } else {
-              setAiRefine({
-                text: menuShape?.text ?? "",
-                onAccept: (refined) => {
-                  handleShapeUpdate(menu.shapeId, { text: refined });
-                  setAiRefine(null);
-                },
-              });
-            }
-          }}
         />
 
 <ChatPanel
@@ -816,13 +795,6 @@ export default function Board() {
 
       <ReactionOverlay reactions={reactions} />
 
-      {aiRefine && (
-        <AIRefineModal
-          originalText={aiRefine.text}
-          onAccept={aiRefine.onAccept}
-          onClose={() => setAiRefine(null)}
-        />
-      )}
     </div>
   );
 }

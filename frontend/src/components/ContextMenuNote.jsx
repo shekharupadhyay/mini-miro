@@ -18,7 +18,6 @@ export default function ContextMenuNote({
   onEdit, onDelete, onClose,
   onChangeColor, onTextColor, onFontFamily,
   onFontSize, onTextAlign, onVerticalAlign,
-  onRefineWithAI,
   currentTextColor  = "#111318",
   currentFontFamily = "sans",
   currentFontSize   = "md",
@@ -33,9 +32,6 @@ export default function ContextMenuNote({
       <button className="context-menu-btn" onClick={() => { onEdit?.(); onClose(); }}>
         <span>✏️ Edit note</span>
         <span className="context-menu-hint">Enter</span>
-      </button>
-      <button className="context-menu-btn" onClick={() => { onRefineWithAI?.(); onClose(); }}>
-        <span>✨ Refine with AI</span>
       </button>
 
       <div className="context-menu-label" style={{ marginTop: 4 }}>Note colour</div>
