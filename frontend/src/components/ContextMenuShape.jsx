@@ -14,7 +14,7 @@ const V_ICONS = {
 const FONT_SIZE_PX = { sm: 11, md: 14, lg: 17, xl: 21 };
 
 export default function ContextMenuShape({
-  onEditShape, onDeleteShape, onClose,
+  onEditShape, onDeleteShape, onClose, onRefine,
   onShapeColor, onShapeFill,
   onTextColor, onFontFamily,
   onFontSize, onTextAlign, onVerticalAlign, onStrokeWidth,
@@ -33,6 +33,9 @@ export default function ContextMenuShape({
       <button className="context-menu-btn" onClick={() => { onEditShape?.(); onClose(); }}>
         <span>✏️ Edit text</span>
         <span className="context-menu-hint">Enter</span>
+      </button>
+      <button className="context-menu-btn" onClick={() => { onRefine?.(); onClose(); }}>
+        <span>✨ Refine text</span>
       </button>
 
       <div className="context-menu-label" style={{ marginTop: 4 }}>Fill</div>

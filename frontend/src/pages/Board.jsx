@@ -22,7 +22,9 @@ import Shape                from "../components/Shape";
 import ZoomBar              from "../components/ZoomBar";
 import MultiSelectToolbar   from "../components/MultiSelectToolbar";
 import LineDrawPreview      from "../components/LineDrawPreview";
-import ReactionOverlay  from "../components/ReactionOverlay";
+import ReactionOverlay      from "../components/ReactionOverlay";
+import AIAssistantPanel    from "../components/AIAssistantPanel";
+import AIRefineModal       from "../components/AIRefineModal";
 
 import "./board-page.css";
 
@@ -88,6 +90,7 @@ export default function Board() {
   const stopEditNote  = useCallback(()   => dispatchSel({ type: "STOP_EDIT_NOTE"  }), []);
   const stopEditShape = useCallback(()   => dispatchSel({ type: "STOP_EDIT_SHAPE" }), []);
   const deselectAll   = useCallback(()   => dispatchSel({ type: "DESELECT_ALL"    }), []);
+  const [refineModal, setRefineModal] = useState({ open: false, type: null, id: null, text: "" });
   const [chatOpen,       setChatOpen]       = useState(false);
   const [hasUnread,      setHasUnread]      = useState(false);
   const [reactions,      setReactions]      = useState([]);
@@ -141,6 +144,15 @@ export default function Board() {
   }, [socket, username]);
 
   const onExport = useCallback(() => exportAsPng(boardId, notes, shapes), [boardId, notes, shapes]);
+
+  const handleRefineAccept = useCallback((newText) => {
+    if (refineModal.type === "note") {
+      handleSaveNoteText(refineModal.id, newText);
+    } else {
+      handleShapeUpdate(refineModal.id, { text: newText });
+    }
+    setRefineModal({ open: false, type: null, id: null, text: "" });
+  }, [refineModal, handleSaveNoteText, handleShapeUpdate]);
 
   // ── Board rename (admin) ───────────────────────────────────────────
   const handleBoardRename = useCallback(async (newName) => {
@@ -513,6 +525,8 @@ export default function Board() {
           onShapeFill={(fillId)   => handleShapeUpdate(menu.shapeId, { fillMode: fillId })}
           currentShapeColor={menuShape?.color    ?? "black"}
           currentShapeFill={menuShape?.fillMode  ?? "none"}
+          onRefineNote={() => setRefineModal({ open: true, type: "note",  id: menu.noteId,  text: menuNote?.text  ?? "" })}
+          onRefineShape={() => setRefineModal({ open: true, type: "shape", id: menu.shapeId, text: menuShape?.text ?? "" })}
           onTextColor={(colorId) =>
             menu.mode === "note"
               ? handleNoteUpdate(menu.noteId,   { textColor: colorId })
@@ -566,6 +580,17 @@ export default function Board() {
       />
 
       <ReactionOverlay reactions={reactions} />
+
+      <AIAssistantPanel notes={notes} shapes={shapes} />
+
+      {refineModal.open && (
+        <AIRefineModal
+          text={refineModal.text}
+          type={refineModal.type}
+          onAccept={handleRefineAccept}
+          onClose={() => setRefineModal({ open: false, type: null, id: null, text: "" })}
+        />
+      )}
 
     </div>
   );

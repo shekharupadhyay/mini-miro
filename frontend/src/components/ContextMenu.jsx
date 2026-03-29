@@ -6,7 +6,7 @@ import ContextMenuFlexLine  from "./ContextMenuFlexLine";
 import "./ContextMenu.css";
 
 // Estimated max heights per mode for viewport overflow clamping
-const MODE_HEIGHT = { canvas: 200, note: 560, shape: 680, flexline: 320 };
+const MODE_HEIGHT = { canvas: 200, note: 604, shape: 724, flexline: 320 };
 
 export default function ContextMenu({
   open, x, y, onClose, mode = "note",
@@ -27,6 +27,8 @@ export default function ContextMenu({
   currentFontSize      = "md",
   currentTextAlign     = "center",
   currentVerticalAlign = "center",
+  // AI refine
+  onRefineNote, onRefineShape,
   // stroke width (shape + flexline)
   onStrokeWidth,
   currentStrokeWidth = 2,
@@ -79,7 +81,7 @@ export default function ContextMenu({
       )}
       {mode === "note" && (
         <ContextMenuNote
-          onEdit={onEdit} onDelete={onDelete} onClose={onClose}
+          onEdit={onEdit} onDelete={onDelete} onClose={onClose} onRefine={onRefineNote}
           onChangeColor={onChangeColor}
           {...textProps}
           {...sizeAlignProps}
@@ -87,7 +89,7 @@ export default function ContextMenu({
       )}
       {mode === "shape" && (
         <ContextMenuShape
-          onEditShape={onEditShape} onDeleteShape={onDeleteShape} onClose={onClose}
+          onEditShape={onEditShape} onDeleteShape={onDeleteShape} onClose={onClose} onRefine={onRefineShape}
           onShapeColor={onShapeColor} onShapeFill={onShapeFill}
           currentShapeColor={currentShapeColor} currentShapeFill={currentShapeFill}
           onStrokeWidth={onStrokeWidth} currentStrokeWidth={currentStrokeWidth}

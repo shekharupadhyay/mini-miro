@@ -15,7 +15,7 @@ const V_ICONS = {
 const FONT_SIZE_PX = { sm: 11, md: 14, lg: 17, xl: 21 };
 
 export default function ContextMenuNote({
-  onEdit, onDelete, onClose,
+  onEdit, onDelete, onClose, onRefine,
   onChangeColor, onTextColor, onFontFamily,
   onFontSize, onTextAlign, onVerticalAlign,
   currentTextColor  = "#111318",
@@ -32,6 +32,9 @@ export default function ContextMenuNote({
       <button className="context-menu-btn" onClick={() => { onEdit?.(); onClose(); }}>
         <span>✏️ Edit note</span>
         <span className="context-menu-hint">Enter</span>
+      </button>
+      <button className="context-menu-btn" onClick={() => { onRefine?.(); onClose(); }}>
+        <span>✨ Refine text</span>
       </button>
 
       <div className="context-menu-label" style={{ marginTop: 4 }}>Note colour</div>
