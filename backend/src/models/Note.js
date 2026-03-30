@@ -1,0 +1,22 @@
+import mongoose from "mongoose";
+
+const noteSchema = new mongoose.Schema(
+  {
+    boardId:    { type: String, required: true, index: true },
+    text:       { type: String, default: "" },
+    x:          { type: Number, default: 100 },
+    y:          { type: Number, default: 100 },
+    w:          { type: Number, default: 180 },
+    h:          { type: Number, default: 110 },
+    color:      { type: String, default: "yellow" },
+    textColor:  { type: String, default: "#111318" },
+    fontFamily:    { type: String, default: "sans" },
+    fontSize:      { type: String, default: "md" },
+    textAlign:     { type: String, default: "left" },
+    verticalAlign: { type: String, default: "top" },
+    rotation:      { type: Number, default: 0 },
+  },
+  { timestamps: true }
+);
+
+export default mongoose.model("Note", noteSchema);

@@ -1,0 +1,271 @@
+.shape-card {
+  position: absolute;
+  cursor: grab;
+  user-select: none;
+}
+
+.shape-card:active {
+  cursor: grabbing;
+}
+
+.shape-card.selected {
+  outline: 2px solid #4f7dff;
+  outline-offset: 2px;
+}
+
+.shape-card.group-selected {
+  outline: 1.5px dashed #3b82f6;
+  outline-offset: 2px;
+}
+
+.shape-svg {
+  display: block;
+  overflow: visible;
+}
+
+/* ── Line label (text above line) ────────────────────────── */
+.shape-line-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shape-line-label-edit {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+/* ── Text overlay (read) ──────────────────────────────────── */
+.shape-text-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 12px;
+  pointer-events: none;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+/* ── Textarea (edit) ──────────────────────────────────────── */
+.shape-textarea-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  pointer-events: none;
+}
+
+.shape-textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  cursor: text;
+  padding: 0;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 1em;
+  pointer-events: all;
+}
+
+/* ── Rotate handle ────────────────────────────────────────── */
+.shape-rotate-handle {
+  position: absolute;
+  top: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #4f7dff;
+  color: #4f7dff;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  z-index: 20;
+  box-shadow: 0 2px 8px rgba(79,125,255,0.25);
+  transition: background 0.12s, transform 0.1s;
+  user-select: none;
+}
+
+.shape-rotate-handle:hover {
+  background: #4f7dff;
+  color: #fff;
+  transform: translateX(-50%) scale(1.15);
+}
+
+.shape-rotate-handle:active {
+  cursor: grabbing;
+}
+
+/* ── Resize handles ───────────────────────────────────────── */
+.shape-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border: 2px solid #4f7dff;
+  border-radius: 3px;
+  z-index: 10;
+  transition: transform 0.1s, background 0.1s;
+}
+.shape-handle:hover {
+  background: #4f7dff;
+  transform: scale(1.3);
+}
+.shape-handle.nw { top: -5px;    left: -5px;   cursor: nw-resize; }
+.shape-handle.ne { top: -5px;    right: -5px;  cursor: ne-resize; }
+.shape-handle.sw { bottom: -5px; left: -5px;   cursor: sw-resize; }
+.shape-handle.se { bottom: -5px; right: -5px;  cursor: se-resize; }
+.shape-handle.line-w { top: -5px; left: -5px;  cursor: ew-resize; }
+.shape-handle.line-e { top: -5px; right: -5px; cursor: ew-resize; }
+
+/* ── Style toolbar ────────────────────────────────────────── */
+.shape-toolbar {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 7px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.10);
+  white-space: nowrap;
+  z-index: 20;
+  animation: toolbar-in 0.14s ease-out;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+@keyframes toolbar-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.shape-toolbar-group {
+  display: flex;
+  gap: 2px;
+}
+
+.shape-toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: rgba(0,0,0,0.08);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* Fill mode buttons */
+.shape-toolbar-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(17,19,24,0.45);
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.shape-toolbar-btn:hover {
+  background: #f5f6f8;
+  color: #111318;
+}
+.shape-toolbar-btn.active {
+  background: rgba(79,125,255,0.1);
+  border-color: rgba(79,125,255,0.35);
+  color: #4f7dff;
+}
+
+/* Colour swatches */
+.shape-toolbar-colors {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.shape-color-btn {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--swatch);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
+  flex-shrink: 0;
+}
+.shape-color-btn:hover {
+  transform: scale(1.25);
+  border-color: rgba(0,0,0,0.2);
+}
+.shape-color-btn.active {
+  border-color: rgba(0,0,0,0.35);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--swatch);
+  transform: scale(1.15);
+}
+
+/* ── Hint label ───────────────────────────────────────────── */
+.shape-hint {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: #fff;
+  background: rgba(17,19,24,0.7);
+  border-radius: 6px;
+  padding: 3px 8px;
+  pointer-events: none;
+  animation: hint-in 0.18s ease-out;
+}
+
+@keyframes hint-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-3px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}

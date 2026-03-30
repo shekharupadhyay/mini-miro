@@ -1,0 +1,112 @@
+/* ─── Note Card ──────────────────────────────────────────────────── */
+.note {
+  position: absolute;
+  border-radius: 0;
+  border: 1.5px solid rgba(0, 0, 0, 0.18);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
+  padding: 14px;
+  user-select: none;
+  word-break: break-word;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.55;
+  box-sizing: border-box;
+  transition: box-shadow 0.15s;
+  cursor: grab;
+}
+
+.note:active {
+  cursor: grabbing;
+}
+
+.note.selected {
+  box-shadow: 0 0 0 2px #4f7dff, 0 6px 20px rgba(0, 0, 0, 0.11);
+}
+
+.note.group-selected {
+  box-shadow: 0 0 0 2px #3b82f6, 0 4px 12px rgba(0, 0, 0, 0.08);
+  outline: 1.5px dashed #3b82f6;
+  outline-offset: 2px;
+}
+
+/* ─── Note content (read mode) ───────────────────────────────────── */
+.note-content {
+  color: inherit;
+  min-height: 20px;
+  pointer-events: none;
+}
+
+/* ─── Note editor (edit mode) ───────────────────────────────────── */
+.note-editor {
+  width: 100%;
+  min-height: 60px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: text;
+  box-sizing: border-box;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* ─── Resize handles ──────────────────────────────────────────────── */
+.note-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border: 2px solid #4f7dff;
+  border-radius: 3px;
+  z-index: 10;
+  transition: transform 0.1s, background 0.1s;
+}
+
+.note-handle:hover {
+  background: #4f7dff;
+  transform: scale(1.3);
+}
+
+.note-handle.nw { top: -5px;    left: -5px;   cursor: nw-resize; }
+.note-handle.ne { top: -5px;    right: -5px;  cursor: ne-resize; }
+.note-handle.sw { bottom: -5px; left: -5px;   cursor: sw-resize; }
+.note-handle.se { bottom: -5px; right: -5px;  cursor: se-resize; }
+
+/* ─── Rotate handle ──────────────────────────────────────────────── */
+.note-rotate-handle {
+  position: absolute;
+  top: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #4f7dff;
+  color: #4f7dff;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  z-index: 20;
+  box-shadow: 0 2px 8px rgba(79, 125, 255, 0.25);
+  transition: background 0.12s, transform 0.1s;
+  user-select: none;
+}
+
+.note-rotate-handle:hover {
+  background: #4f7dff;
+  color: #fff;
+  transform: translateX(-50%) scale(1.15);
+}
+
+.note-rotate-handle:active {
+  cursor: grabbing;
+}
