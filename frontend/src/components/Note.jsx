@@ -4,7 +4,7 @@ import { useRotationAwareResize }   from "../hooks/useRotationAwareResize";
 import { useRotate }                from "../hooks/useRotate";
 import { useTextEditing }           from "../hooks/useTextEditing";
 import { FONT_MAP, FONT_SIZE_MAP, V_ALIGN_MAP } from "../utils/typography";
-import "./Note.css";
+import "./note.css";
 
 export default memo(function Note({
   note,
